@@ -1,0 +1,122 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-waline}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-waline}
+      POSTGRES_DB: ${POSTGRES_DB:-walinex}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-waline} -d ${POSTGRES_DB:-walinex}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-waline.infvar.com}
+        NEXT_PUBLIC_DASH_DOMAIN: ${NEXT_PUBLIC_DASH_DOMAIN:-dash.waline.infvar.com}
+        NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-waline.infvar.com}
+    command: sh -c "pnpm db:deploy && pnpm db:seed"
+    environment: &app_env
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-waline}:${POSTGRES_PASSWORD:-waline}@db:5432/${POSTGRES_DB:-walinex}?schema=public
+      REDIS_URL: redis://redis:6379
+      REDIS_ENABLED: "true"
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-waline.infvar.com}
+      NEXT_PUBLIC_DASH_DOMAIN: ${NEXT_PUBLIC_DASH_DOMAIN:-dash.waline.infvar.com}
+      NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-waline.infvar.com}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+      CAP_SECRET: ${CAP_SECRET:?set CAP_SECRET}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-无尽书证 <noreply@waline.infvar.com>}
+      AKISMET_API_KEY: ${AKISMET_API_KEY:-}
+      AI_MODERATION_BASE_URL: ${AI_MODERATION_BASE_URL:-https://api.openai.com/v1}
+      AI_MODERATION_MODEL: ${AI_MODERATION_MODEL:-gpt-4o-mini}
+      AI_MODERATION_API_KEY: ${AI_MODERATION_API_KEY:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_NAME: ${ADMIN_NAME:-}
+      EMAIL_WORKER_CONCURRENCY: ${EMAIL_WORKER_CONCURRENCY:-4}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-waline.infvar.com}
+        NEXT_PUBLIC_DASH_DOMAIN: ${NEXT_PUBLIC_DASH_DOMAIN:-dash.waline.infvar.com}
+        NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-waline.infvar.com}
+    command: pnpm start
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment: *app_env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+
+  worker:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-waline.infvar.com}
+        NEXT_PUBLIC_DASH_DOMAIN: ${NEXT_PUBLIC_DASH_DOMAIN:-dash.waline.infvar.com}
+        NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-waline.infvar.com}
+    command: pnpm worker:emails
+    environment: *app_env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

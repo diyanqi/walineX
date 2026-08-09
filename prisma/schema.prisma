@@ -1,0 +1,411 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Plan {
+  free
+  starter
+  pro
+}
+
+enum SubscriptionProvider {
+  manual
+  stripe
+  lemon
+  paddle
+}
+
+enum SubscriptionStatus {
+  active
+  past_due
+  canceled
+  expired
+}
+
+enum OAuthProvider {
+  github
+  google
+}
+
+enum InstanceStatus {
+  active
+  disabled
+  suspended
+}
+
+enum CommentStatus {
+  approved
+  waiting
+  spam
+}
+
+enum SensitiveWordScope {
+  global
+  instance
+}
+
+enum SensitiveWordAction {
+  block
+  replace
+  review
+}
+
+enum ModerationRuleType {
+  ip_blacklist
+  user_blacklist
+  email_blacklist
+  url_blacklist
+  nick_blacklist
+}
+
+enum NotificationType {
+  new_comment
+  reply
+  moderation
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+  cancelled
+}
+
+enum EmailLogStatus {
+  queued
+  sent
+  failed
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  name          String?
+  avatar        String?
+  passwordHash  String?
+  githubId      String?   @unique
+  googleId      String?   @unique
+  plan          Plan      @default(free)
+  planExpiresAt DateTime?
+  isAdmin       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  accounts      Account[]
+  sessions      Session[]
+  instances     Instance[]
+  notifications Notification[]
+  usageRecords  UsageRecord[]
+  subscriptions Subscription[]
+  emailLogs     EmailLog[]
+  commentReplies CommentReply[]
+}
+
+model Account {
+  id                   String       @id @default(cuid())
+  userId               String
+  provider             OAuthProvider
+  providerAccountId    String
+  displayName          String?
+  email                String?
+  avatar               String?
+  accessTokenEncrypted String?
+  refreshTokenEncrypted String?
+  tokenExpiresAt       DateTime?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  lastUsedAt DateTime @default(now())
+  ip        String?
+  userAgent String?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Instance {
+  id                   String          @id @default(cuid())
+  slug                 String          @unique
+  name                 String
+  description          String?
+  userId               String
+  status               InstanceStatus  @default(active)
+  moderationEnabled    Boolean         @default(true)
+  sensitiveWordMode    SensitiveWordAction @default(review)
+  defaultCommentStatus CommentStatus   @default(waiting)
+  notifyNewComment     Boolean         @default(false)
+  notifyReply          Boolean         @default(false)
+  notifyModeration     Boolean         @default(false)
+  notificationEmail    String?
+  akismetEnabled       Boolean         @default(false)
+  akismetKeyEncrypted  String?
+  aiModerationEnabled  Boolean         @default(false)
+  aiApiBaseUrl         String?
+  aiApiKeyEncrypted    String?
+  aiModel              String?
+  allowAnonymous       Boolean         @default(true)
+  requireCap           Boolean         @default(false)
+  monthlyCommentLimit  Int             @default(1000)
+  totalCommentLimit    Int             @default(10000)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  deletedAt            DateTime?
+
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments       Comment[]
+  sensitiveWords SensitiveWord[]
+  moderationRules ModerationRule[]
+  notifications  Notification[]
+  usageRecords   UsageRecord[]
+  articleCounters ArticleCounter[]
+  emailLogs      EmailLog[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Comment {
+  objectId Int @id @default(autoincrement())
+  instanceId String
+  url String
+  nick String
+  mail String?
+  link String?
+  avatar String?
+  comment String
+  rendered String
+  ua String?
+  ipHash String?
+  ip String?
+  addr String?
+  browser String?
+  os String?
+  status CommentStatus @default(waiting)
+  like Int @default(0)
+  sticky Boolean @default(false)
+  pid Int?
+  rid Int?
+  at String?
+  spamScore Float?
+  moderationReason String?
+  moderatedBy String?
+  moderatedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  parent Comment? @relation("CommentChildren", fields: [pid], references: [objectId], onDelete: SetNull)
+  children Comment[] @relation("CommentChildren")
+  root Comment? @relation("CommentReplies", fields: [rid], references: [objectId], onDelete: SetNull)
+  replies Comment[] @relation("CommentReplies")
+  sourceReplies CommentReply[] @relation("CommentReplySource")
+  targetReplies CommentReply[] @relation("CommentReplyTarget")
+  reactions CommentReaction[]
+  notifications Notification[]
+
+  @@index([instanceId, status, createdAt])
+  @@index([instanceId, url, status, createdAt])
+  @@index([instanceId, pid])
+  @@index([instanceId, rid])
+  @@index([instanceId, deletedAt])
+}
+
+model CommentReply {
+  id                String   @id @default(cuid())
+  commentId         Int
+  replyToCommentId  Int
+  userId            String?
+  nick              String
+  email             String?
+  content           String
+  createdAt         DateTime @default(now())
+
+  comment   Comment @relation("CommentReplySource", fields: [commentId], references: [objectId], onDelete: Cascade)
+  replyTo   Comment @relation("CommentReplyTarget", fields: [replyToCommentId], references: [objectId], onDelete: Cascade)
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([commentId])
+  @@index([replyToCommentId])
+}
+
+model CommentReaction {
+  id        String   @id @default(cuid())
+  commentId Int
+  key       String
+  reaction  String   @default("like")
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [objectId], onDelete: Cascade)
+
+  @@unique([commentId, key, reaction])
+  @@index([commentId])
+}
+
+model SensitiveWord {
+  id          String              @id @default(cuid())
+  instanceId  String?
+  scope       SensitiveWordScope  @default(instance)
+  word        String
+  action      SensitiveWordAction @default(review)
+  replacement String?
+  enabled     Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  instance Instance? @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId, word])
+}
+
+model ModerationRule {
+  id          String             @id @default(cuid())
+  instanceId  String
+  type        ModerationRuleType
+  value       String
+  enabled     Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@unique([instanceId, type, value])
+  @@index([instanceId, type])
+}
+
+model Notification {
+  id             String             @id @default(cuid())
+  instanceId     String
+  userId         String
+  type           NotificationType
+  recipientEmail String
+  subject        String
+  body           String
+  status         NotificationStatus @default(pending)
+  commentId      Int?
+  error          String?
+  sentAt         DateTime?
+  createdAt      DateTime           @default(now())
+
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment  Comment? @relation(fields: [commentId], references: [objectId], onDelete: SetNull)
+
+  @@index([instanceId, status])
+  @@index([userId, createdAt])
+}
+
+model EmailLog {
+  id         String         @id @default(cuid())
+  userId     String?
+  instanceId String?
+  to         String
+  subject    String
+  body       String
+  status     EmailLogStatus @default(queued)
+  provider   String         @default("smtp")
+  error      String?
+  sentAt     DateTime?
+  createdAt  DateTime       @default(now())
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  instance Instance? @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([instanceId])
+}
+
+model UsageRecord {
+  id           String   @id @default(cuid())
+  instanceId   String
+  userId       String
+  month        String
+  commentCount Int      @default(0)
+  likeCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([instanceId, month])
+  @@unique([userId, month])
+  @@index([userId, month])
+}
+
+model Subscription {
+  id                   String               @id @default(cuid())
+  userId               String
+  plan                 Plan
+  provider             SubscriptionProvider @default(manual)
+  status               SubscriptionStatus   @default(active)
+  externalId           String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean              @default(false)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, plan, provider, status])
+  @@index([userId])
+  @@index([status])
+}
+
+model ArticleCounter {
+  id         String   @id @default(cuid())
+  instanceId String
+  url        String
+  type       String
+  value      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@unique([instanceId, url, type])
+  @@index([instanceId, url])
+}
+
+model CapNonce {
+  id        String   @id @default(cuid())
+  sig       String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model CapRedemption {
+  id        String   @id @default(cuid())
+  tokenKey  String   @unique
+  scope     String
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([consumedAt])
+}
