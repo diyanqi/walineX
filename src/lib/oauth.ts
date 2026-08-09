@@ -1,5 +1,5 @@
 import type { OAuthProvider } from "@prisma/client";
-import { env, rootUrl } from "@/lib/env";
+import { env, instanceDomain, rootDomain, rootUrl } from "@/lib/env";
 
 const PROVIDER_NAMES: Record<OAuthProvider, string> = {
   github: "GitHub",
@@ -139,18 +139,11 @@ export function isSafeOAuthRedirect(value: string | null | undefined): string | 
     const url = new URL(value, rootUrl("/"));
     const allowedHosts = new Set([
       new URL(rootUrl("/")).host,
-      env("NEXT_PUBLIC_DASH_DOMAIN"),
-      env("NEXT_PUBLIC_ROOT_DOMAIN"),
+      rootDomain,
+      instanceDomain,
     ]);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    const host = url.hostname;
-    if (
-      allowedHosts.has(url.host) ||
-      host.endsWith(`.${env("NEXT_PUBLIC_INSTANCE_DOMAIN")}`) ||
-      host.endsWith(`.${env("NEXT_PUBLIC_ROOT_DOMAIN")}`)
-    ) {
-      return url.toString();
-    }
+    if (allowedHosts.has(url.host)) return url.toString();
     return null;
   } catch {
     return null;

@@ -4,6 +4,7 @@ import { ApiError, apiError } from "@/lib/api";
 import { requireOwnedInstance } from "@/lib/dashboard";
 import { instanceUrl } from "@/lib/env";
 import { jsonResponse } from "@/lib/http";
+import { parseTargetOrigins } from "@/lib/cors";
 import { planLimits } from "@/lib/plans";
 
 const STATUSES = new Set(["active", "disabled", "suspended"]);
@@ -13,6 +14,7 @@ function publicInstance(instance: {
   slug: string;
   name: string;
   description: string | null;
+  targetOrigins: string[];
   status: string;
   createdAt: Date;
   notifyNewComment: boolean;
@@ -25,6 +27,7 @@ function publicInstance(instance: {
     slug: instance.slug,
     name: instance.name,
     description: instance.description,
+    targetOrigins: instance.targetOrigins,
     status: instance.status,
     createdAt: instance.createdAt,
     url: instanceUrl(instance.slug),
@@ -52,6 +55,13 @@ export async function PATCH(
     if (typeof body.description === "string") {
       data.description = body.description.trim().slice(0, 500) || null;
     }
+    if (body.targetOrigins !== undefined) {
+      const targetOrigins = parseTargetOrigins(body.targetOrigins);
+      if (targetOrigins === null) {
+        throw new ApiError("目标地址格式不正确");
+      }
+      data.targetOrigins = { set: targetOrigins };
+    }
     if (typeof body.status === "string" && STATUSES.has(body.status)) {
       data.status = body.status;
     }
@@ -74,6 +84,9 @@ export async function PATCH(
       const slug = body.slug.trim().toLowerCase();
       if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug)) {
         throw new ApiError("实例标识格式不正确");
+      }
+      if (slug === "tenant") {
+        throw new ApiError("该实例标识不可用");
       }
       const exists = await prisma.instance.findFirst({
         where: { slug, NOT: { id: instance.id } },

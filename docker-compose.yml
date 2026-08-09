@@ -32,8 +32,7 @@ services:
       args:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
         NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-waline.infvar.com}
-        NEXT_PUBLIC_DASH_DOMAIN: ${NEXT_PUBLIC_DASH_DOMAIN:-dash.waline.infvar.com}
-        NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-waline.infvar.com}
+        NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-instance.waline.infvar.com}
     command: sh -c "pnpm db:deploy && pnpm db:seed"
     environment: &app_env
       NODE_ENV: production
@@ -42,8 +41,7 @@ services:
       REDIS_ENABLED: "true"
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-waline.infvar.com}
-      NEXT_PUBLIC_DASH_DOMAIN: ${NEXT_PUBLIC_DASH_DOMAIN:-dash.waline.infvar.com}
-      NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-waline.infvar.com}
+      NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-instance.waline.infvar.com}
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY}
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
       CAP_SECRET: ${CAP_SECRET:?set CAP_SECRET}
@@ -76,8 +74,7 @@ services:
       args:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
         NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-waline.infvar.com}
-        NEXT_PUBLIC_DASH_DOMAIN: ${NEXT_PUBLIC_DASH_DOMAIN:-dash.waline.infvar.com}
-        NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-waline.infvar.com}
+        NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-instance.waline.infvar.com}
     command: pnpm start
     ports:
       - "${APP_PORT:-3000}:3000"
@@ -106,8 +103,7 @@ services:
       args:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
         NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-waline.infvar.com}
-        NEXT_PUBLIC_DASH_DOMAIN: ${NEXT_PUBLIC_DASH_DOMAIN:-dash.waline.infvar.com}
-        NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-waline.infvar.com}
+        NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-instance.waline.infvar.com}
     command: pnpm worker:emails
     environment: *app_env
     depends_on:

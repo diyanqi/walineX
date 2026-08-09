@@ -65,7 +65,7 @@ const FAQS = [
   {
     question: "实例地址是什么样？",
     answer:
-      "创建实例后会自动生成 {实例标识}.waline.infvar.com，例如 myblog.waline.infvar.com，无需绑定自定义域名。",
+      "创建实例后会自动生成 https://instance.waline.infvar.com/{实例标识}，例如 https://instance.waline.infvar.com/myblog，无需绑定自定义域名。",
   },
   {
     question: "评论会经过哪些审核？",
@@ -179,7 +179,7 @@ export default function Home() {
                     },
                     {
                       title: "复制 API 地址",
-                      description: "在控制台复制 {实例标识}.waline.infvar.com/api 作为服务端地址。",
+                      description: "在控制台复制 https://instance.waline.infvar.com/{实例标识}/api 作为服务端地址。",
                     },
                     {
                       title: "更新 Waline 配置",
@@ -216,7 +216,7 @@ export default function Home() {
                   <code>{`<script>
   const waline = new Waline({
     el: "#comments",
-    serverURL: "https://myblog.waline.infvar.com",
+    serverURL: "https://instance.waline.infvar.com/myblog",
     path: location.pathname,
     lang: "zh-CN"
   });

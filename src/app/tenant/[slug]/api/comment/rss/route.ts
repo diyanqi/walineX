@@ -1,10 +1,13 @@
 import type { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
-import { corsHeaders } from "@/lib/http";
+import { corsHeaders, errorResponse } from "@/lib/http";
+import { enforceTenantCors, tenantOptionsResponse } from "@/lib/cors";
+import { resolveInstance } from "@/lib/instances";
 import { identityFromUser } from "@/lib/waline/identity";
 import { renderCommentMarkdown } from "@/lib/waline/markdown";
 import { prisma } from "@/lib/prisma";
 import { tenantContext } from "@/lib/tenant-api";
+import { instanceUrl } from "@/lib/env";
 
 function xmlEscape(value: string): string {
   return value
@@ -31,6 +34,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
   const ctx = await tenantContext(request, slug);
   if (ctx.response) return ctx.response;
   const instance = ctx.instance!;
+  const blocked = enforceTenantCors(instance, request);
+  if (blocked) return blocked;
   const search = request.nextUrl.searchParams;
   const path = search.get("path") || "";
   const email = search.get("email") || "";
@@ -39,6 +44,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
   const limit = Number.isFinite(rawCount)
     ? Math.min(50, Math.max(1, Math.floor(rawCount)))
     : 20;
+  const siteUrl = instanceUrl(slug);
 
   const approvedWhere = (): Prisma.CommentWhereInput => ({
     status: { notIn: ["waiting", "spam"] },
@@ -67,7 +73,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
     const parentIds = parents.map((parent) => parent.objectId);
     if (parentIds.length === 0) {
       return rssResponse(
-        buildXml(instance.name, new URL(request.url).origin, "Reply Comments", "Recent reply comments.", []),
+        buildXml(instance.name, siteUrl, "Reply Comments", "Recent reply comments.", []),
         request,
       );
     }
@@ -86,7 +92,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
     ? await prisma.user.findMany({ where: { id: { in: userIds } } })
     : [];
   const userById = new Map(users.map((user) => [user.id, user]));
-  const siteUrl = new URL(request.url).origin;
   const items = comments.map((comment) => {
     const user = comment.userId ? userById.get(comment.userId) : undefined;
     const identity = user ? identityFromUser(user, instance.userId) : undefined;
@@ -148,4 +153,14 @@ function rssResponse(xml: string, request: NextRequest): Response {
       "content-type": "application/rss+xml; charset=utf-8",
     },
   });
+}
+
+export async function OPTIONS(
+  request: NextRequest,
+  context: { params: Promise<{ slug: string }> },
+) {
+  const { slug } = await context.params;
+  const resolved = await resolveInstance(slug);
+  if (resolved.error) return errorResponse(404, "评论实例不存在。", request);
+  return tenantOptionsResponse(resolved.instance, request);
 }

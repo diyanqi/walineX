@@ -1,39 +1,35 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { dashDomain, instanceDomain, rootDomain } from "@/lib/env";
+import { instanceDomain } from "@/lib/env";
+
+function requestHostname(request: NextRequest): string {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const hostHeader = request.headers.get("host");
+  const raw = forwardedHost || hostHeader || request.nextUrl.hostname;
+  return raw.split(",")[0].trim().split(":")[0].toLowerCase();
+}
 
 function shouldSkip(pathname: string): boolean {
   return (
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico" ||
-    pathname.startsWith("/api/cap") ||
-    pathname.startsWith("/api/auth") ||
-    pathname === "/api/health"
+    pathname.startsWith("/api/")
   );
 }
 
 export function proxy(request: NextRequest) {
-  const hostname = request.nextUrl.hostname;
+  const hostname = requestHostname(request);
   const pathname = request.nextUrl.pathname;
   if (shouldSkip(pathname)) return NextResponse.next();
 
-  if (hostname === dashDomain || hostname === `dash.${rootDomain}`) {
-    if (pathname.startsWith("/dashboard")) return NextResponse.next();
-    const url = request.nextUrl.clone();
-    url.pathname = `/dashboard${pathname === "/" ? "" : pathname}`;
-    return NextResponse.rewrite(url);
-  }
-
-  const isInstanceHost =
-    hostname.endsWith(`.${instanceDomain}`) || hostname.endsWith(`.${rootDomain}`);
-  if (isInstanceHost && hostname !== dashDomain && hostname !== `dash.${rootDomain}`) {
-    const suffix = hostname.endsWith(`.${instanceDomain}`) ? instanceDomain : rootDomain;
-    const slug = hostname.slice(0, -(suffix.length + 1));
-    if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug)) {
+  if (hostname === instanceDomain) {
+    if (pathname === "/tenant" || pathname.startsWith("/tenant/")) {
       return NextResponse.next();
     }
+    const match = pathname.match(/^\/([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(\/.*)?$/);
+    if (!match) return NextResponse.next();
     const url = request.nextUrl.clone();
-    url.pathname = `/tenant/${slug}${pathname === "/" ? "" : pathname}`;
+    url.pathname = `/tenant/${match[1]}${match[2] ?? ""}`;
     return NextResponse.rewrite(url);
   }
 

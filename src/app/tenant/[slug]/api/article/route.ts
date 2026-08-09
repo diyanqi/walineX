@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import { tenantContext } from "@/lib/tenant-api";
-import { errorResponse, jsonResponse } from "@/lib/http";
+import { corsHeaders, errorResponse, jsonResponse } from "@/lib/http";
+import { enforceTenantCors, tenantOptionsResponse } from "@/lib/cors";
+import { resolveInstance } from "@/lib/instances";
 import { prisma } from "@/lib/prisma";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 
@@ -8,6 +10,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
   const { slug } = await context.params;
   const ctx = await tenantContext(request, slug);
   if (ctx.response) return ctx.response;
+  const blocked = enforceTenantCors(ctx.instance!, request);
+  if (blocked) return blocked;
   const search = request.nextUrl.searchParams;
   const paths = (search.get("path") || "")
     .split(",")
@@ -40,6 +44,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
   const { slug } = await context.params;
   const ctx = await tenantContext(request, slug);
   if (ctx.response) return ctx.response;
+  const blocked = enforceTenantCors(ctx.instance!, request);
+  if (blocked) return blocked;
   const limit = await rateLimit(`article:${ctx.instance!.id}:${clientIp(request)}`, 60, 60);
   if (!limit.allowed) {
     return errorResponse(429, "文章计数器请求太快，请稍后再试。", request);
@@ -62,4 +68,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
     update: { value: next },
   });
   return jsonResponse({ errno: 0, data: [{ [type]: counter.value }] }, 200, request);
+}
+
+export async function OPTIONS(
+  request: NextRequest,
+  context: { params: Promise<{ slug: string }> },
+) {
+  const { slug } = await context.params;
+  const resolved = await resolveInstance(slug);
+  if (resolved.error) return new Response(null, { status: 204, headers: corsHeaders(request) });
+  return tenantOptionsResponse(resolved.instance, request);
 }

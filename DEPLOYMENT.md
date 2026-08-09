@@ -4,13 +4,15 @@
 
 ## 1. 域名规划
 
-部署前准备三个域名入口：
+部署前准备两个域名入口：
 
 - 官网：`waline.infvar.com`
-- 控制台：`dash.waline.infvar.com`
-- 评论实例：`*.waline.infvar.com`
+- 控制台：`waline.infvar.com/dashboard`
+- 评论实例：`instance.waline.infvar.com`
 
-请为 `*.waline.infvar.com` 配置 DNS 通配符记录，并让反代将 `{instance}.waline.infvar.com` 转发到应用容器。应用内置的 `src/proxy.ts` 会把实例子域重写到 `/tenant/{instance}`，因此无需为每个实例单独配置。
+请把这两个域名都指向 VPS 的 A 记录。不需要泛域名，也不需要为每个实例单独配置域名。应用内置的 `src/proxy.ts` 根据请求的 Host（或 `X-Forwarded-Host`）把域名分流：`instance.waline.infvar.com/{instance}/...` 会重写到 `/tenant/{instance}/...`，因此一个 Next.js 容器就能同时服务官网、控制台和全部评论实例。
+
+反向代理必须保留原始 Host 头；如果 Host 被改写为容器内部地址，实例域名路由会失效。
 
 ## 2. 环境变量
 
@@ -41,8 +43,7 @@ GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 NEXT_PUBLIC_APP_URL=https://waline.infvar.com
 NEXT_PUBLIC_ROOT_DOMAIN=waline.infvar.com
-NEXT_PUBLIC_DASH_DOMAIN=dash.waline.infvar.com
-NEXT_PUBLIC_INSTANCE_DOMAIN=waline.infvar.com
+NEXT_PUBLIC_INSTANCE_DOMAIN=instance.waline.infvar.com
 SMTP_HOST=...
 SMTP_PORT=587
 SMTP_USER=...
@@ -65,7 +66,12 @@ GitHub OAuth App 和 Google OAuth Client 都要配置：
 - GitHub：`https://waline.infvar.com/api/auth/github/callback`
 - Google：`https://waline.infvar.com/api/auth/google/callback`
 
-本服务通过 Cookie 建立登录态，实例子域登录弹窗会回到官网域完成 OAuth 后生成 Waline JWT。
+本服务通过 Cookie 建立登录态，实例登录弹窗会回到官网域完成 OAuth 后生成 Waline JWT。
+
+如果 GitHub 登录完成后仍跳转到 `http://localhost:3000/dashboard`，通常是容器里的
+`NEXT_PUBLIC_APP_URL` 还是旧值，或旧镜像没有重建。确认 `.env` 中为
+`https://waline.infvar.com`，然后执行 `docker compose up -d --build --force-recreate`，
+并清理浏览器中 `waline.infvar.com` 的 Cookie 后重试。
 
 ## 4. 启动
 
@@ -94,6 +100,10 @@ docker compose up -d --build --force-recreate
 docker compose run --rm migrate
 ```
 
+如果 `migrate` 容器报 `The datasource.url property is required`，说明旧镜像里没有
+`prisma.config.ts`。请拉取最新代码后执行 `docker compose up -d --build` 重建镜像，
+同时确认 `migrate` 服务环境中的 `DATABASE_URL` 已指向 `db` 容器。
+
 ## 5. 反向代理与 HTTPS
 
 以 Caddy 为例：
@@ -103,18 +113,48 @@ waline.infvar.com {
     reverse_proxy 127.0.0.1:3000
 }
 
-dash.waline.infvar.com {
-    reverse_proxy 127.0.0.1:3000
-}
-
-*.waline.infvar.com {
+instance.waline.infvar.com {
     reverse_proxy 127.0.0.1:3000
 }
 ```
 
-Nginx 需要把 `dash.waline.infvar.com` 和所有 `*.waline.infvar.com` 的请求转发到应用容器端口，并保留原始 Host 头。
+Caddy 默认会保留 Host，并自动附加 `X-Forwarded-For`、`X-Forwarded-Proto`、`X-Forwarded-Host`，上面的配置即可。
 
-## 6. 邮件 Worker
+以 Nginx 为例，需要显式转发 Host 和协议头：
+
+```nginx
+server {
+    listen 80;
+    server_name waline.infvar.com instance.waline.infvar.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+HTTPS 证书可以统一由 Caddy 自动签发，或由 Nginx 配合 certbot 为这两个域名分别签发。
+
+## 6. 目标地址与 CORS 防盗链
+
+在控制台进入“实例”，编辑实例时填写“允许接入的网站”，每行一个网站地址，例如：
+
+```text
+https://example.com
+https://blog.example.org
+```
+
+留空表示不限制来源；填写后，只有列表中列出的来源以及实例自身域名可以调用评论 API，其他网站发起的跨域请求会被拒绝。建议在创建实例时就把自己的博客域名填上。
+
+配置了接入白名单后，没有 `Origin` 或 `Referer` 的直接请求也会被拒绝，避免绕过浏览器 CORS 直接抓取或灌评论。
+
+## 7. 邮件 Worker
 
 邮件通过 BullMQ 队列异步发送，应用本身不会阻塞评论请求。`docker compose up` 会同时启动 `worker` 服务；独立部署时运行：
 
@@ -124,7 +164,7 @@ pnpm worker:emails
 
 如果 `REDIS_ENABLED=false`，系统会自动退回数据库 pending 队列，并在评论请求后尽力同步发送。
 
-## 7. 备份
+## 8. 备份
 
 PostgreSQL 数据保存在 `postgres_data` volume，建议每日执行：
 
@@ -134,10 +174,10 @@ docker compose exec db pg_dump -U waline walinex | gzip > walinex-$(date +%F).sq
 
 `CAP_SECRET`、`SESSION_SECRET` 和 `APP_ENCRYPTION_KEY` 一旦丢失会导致现有会话和验证失效，请妥善保存。
 
-## 8. 上线检查
+## 9. 上线检查
 
 1. 访问 `/api/health` 确认服务健康。
 2. 使用 GitHub / Google 登录并创建实例。
-3. 用任意 Waline 客户端指向 `https://{instance}.waline.infvar.com` 发评论。
+3. 用任意 Waline 客户端指向 `https://instance.waline.infvar.com/{实例标识}` 发评论。
 4. 在控制台审核评论、配置敏感词和通知。
 5. 确认邮件 worker 日志中没有发送失败。

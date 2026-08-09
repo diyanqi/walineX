@@ -16,7 +16,7 @@ export function HeroPreview() {
         <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
         <div className="mx-auto flex h-6 w-full max-w-xs items-center justify-center rounded border border-white/10 bg-black/30 text-[10px] text-white/60">
-          dash.waline.infvar.com
+          waline.infvar.com/dashboard
         </div>
       </div>
       <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">

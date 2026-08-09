@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AuthOAuthPanel } from "@/components/auth-oauth-panel";
 import { TenantLoginComplete } from "@/components/tenant/tenant-login-complete";
 import { getSessionUser, issueWalineToken } from "@/lib/auth";
-import { rootUrl } from "@/lib/env";
+import { instanceUrl, rootUrl } from "@/lib/env";
 import { getInstanceBySlug } from "@/lib/instances";
 
 export const metadata: Metadata = {
@@ -63,7 +63,7 @@ export default async function TenantLoginPage({
   const authQuery = new URLSearchParams();
   if (redirect) authQuery.set("redirect", redirect);
   if (lng) authQuery.set("lng", lng);
-  const authRedirect = `/tenant/${slug}/ui/login${authQuery.size ? `?${authQuery}` : ""}`;
+  const authRedirect = `${instanceUrl(slug)}/ui/login${authQuery.size ? `?${authQuery}` : ""}`;
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-16">

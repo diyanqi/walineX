@@ -58,8 +58,9 @@ export default function DocsPage() {
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
               {[
                 { title: "1. 注册账号", text: "使用 GitHub 或 Google 完成 OAuth 登录，注册即自动创建账号。" },
-                { title: "2. 创建实例", text: "在控制台创建实例，得到 {标识}.waline.infvar.com 地址。" },
-                { title: "3. 替换 serverURL", text: "在 Waline 客户端中把 serverURL 指向实例的 /api 地址。" },
+                { title: "2. 创建实例", text: "在控制台创建实例，得到 instance.waline.infvar.com/{标识} 地址。" },
+                { title: "3. 配置接入网站", text: "在实例编辑页填写自己的博客域名，开启 CORS 防盗链。" },
+                { title: "4. 替换 serverURL", text: "在 Waline 客户端中把 serverURL 指向实例的 /api 地址。" },
               ].map((item) => (
                 <div key={item.title} className="rounded-lg border bg-background p-5">
                   <p className="font-medium">{item.title}</p>
@@ -80,11 +81,14 @@ export default function DocsPage() {
                 系统会自动生成实例标识和专属 API 地址。
               </p>
               <p>
-                实例地址格式为 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">https://{'{标识}'}.waline.infvar.com</code>
-                ，评论 API 地址为 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">https://{'{标识}'}.waline.infvar.com/api</code>。
+                实例地址格式为 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">https://instance.waline.infvar.com/{'{标识}'}</code>
+                ，评论 API 地址为 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">https://instance.waline.infvar.com/{'{标识}'}/api</code>。
               </p>
               <p>
                 你可以在实例列表中复制 API 地址、启停实例、修改名称，或进入审核与通知页面配置策略。
+              </p>
+              <p>
+                在「编辑实例」中填写允许接入的网站地址（每行一个）后，其他网站将无法跨域调用该实例的评论 API。
               </p>
             </div>
           </section>
@@ -107,7 +111,7 @@ export default function DocsPage() {
 
   init({
     el: "#comments",
-    serverURL: "https://myblog.waline.infvar.com",
+    serverURL: "https://instance.waline.infvar.com/myblog",
     path: location.pathname,
     lang: "zh-CN",
     dark: "auto"

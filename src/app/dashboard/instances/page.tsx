@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
-import { instanceDomain, instanceUrl } from "@/lib/env";
+import { instanceUrl } from "@/lib/env";
 import { planLimits } from "@/lib/plans";
 import {
   InstancesManager,
@@ -24,6 +24,7 @@ export default async function InstancesPage() {
     slug: instance.slug,
     name: instance.name,
     description: instance.description,
+    targetOrigins: instance.targetOrigins,
     status: instance.status,
     createdAt: instance.createdAt,
     url: instanceUrl(instance.slug),
@@ -33,7 +34,7 @@ export default async function InstancesPage() {
     <InstancesManager
       instances={data}
       planInstances={planLimits(user.plan).instances}
-      domain={instanceDomain}
+      urlPrefix={instanceUrl("")}
     />
   );
 }

@@ -152,6 +152,7 @@ model Instance {
   slug                 String          @unique
   name                 String
   description          String?
+  targetOrigins        String[]        @default([])
   userId               String
   status               InstanceStatus  @default(active)
   moderationEnabled    Boolean         @default(true)

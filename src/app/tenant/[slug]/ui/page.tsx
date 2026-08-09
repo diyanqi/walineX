@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { instanceUrl } from "@/lib/env";
 
 export default async function TenantUiPage({
   params,
@@ -6,5 +7,5 @@ export default async function TenantUiPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  redirect(`/tenant/${slug}/ui/login`);
+  redirect(`${instanceUrl(slug)}/ui/login`);
 }

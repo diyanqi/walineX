@@ -6,17 +6,16 @@ export const isProduction = process.env.NODE_ENV === "production";
 
 export const appUrl = env("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
 export const rootDomain = env("NEXT_PUBLIC_ROOT_DOMAIN", "waline.infvar.com");
-export const dashDomain = env("NEXT_PUBLIC_DASH_DOMAIN", "dash.waline.infvar.com");
-export const instanceDomain = env("NEXT_PUBLIC_INSTANCE_DOMAIN", "waline.infvar.com");
+export const instanceDomain = env("NEXT_PUBLIC_INSTANCE_DOMAIN", "instance.waline.infvar.com");
 
 export function instanceUrl(slug: string): string {
-  if (isProduction) return `https://${slug}.${instanceDomain}`;
+  if (isProduction) return `https://${instanceDomain}/${slug}`;
   return `${appUrl}/tenant/${slug}`;
 }
 
 export function dashboardUrl(path = "/"): string {
-  if (isProduction) return `https://${dashDomain}${path}`;
-  return `${appUrl}/dashboard${path}`;
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return rootUrl(`/dashboard${normalized === "/" ? "" : normalized}`);
 }
 
 export function rootUrl(path = "/"): string {

@@ -32,6 +32,7 @@ export interface DashboardInstance {
   slug: string;
   name: string;
   description: string | null;
+  targetOrigins: string[];
   status: string;
   createdAt: Date | string;
   url: string;
@@ -41,25 +42,32 @@ export interface DashboardInstance {
 interface InstancesManagerProps {
   instances: DashboardInstance[];
   planInstances: number;
-  domain: string;
+  urlPrefix: string;
 }
 
 interface InstanceFormState {
   name: string;
   slug: string;
   description: string;
+  targetOrigins: string;
   capToken: string | null;
 }
 
 function emptyForm(): InstanceFormState {
   const suffix = Math.random().toString(36).slice(2, 8);
-  return { name: "", slug: `site-${suffix}`, description: "", capToken: null };
+  return {
+    name: "",
+    slug: `site-${suffix}`,
+    description: "",
+    targetOrigins: "",
+    capToken: null,
+  };
 }
 
 export function InstancesManager({
   instances: initial,
   planInstances,
-  domain,
+  urlPrefix,
 }: InstancesManagerProps) {
   const [instances, setInstances] = React.useState(initial);
   const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -85,6 +93,7 @@ export function InstancesManager({
       name: instance.name,
       slug: instance.slug,
       description: instance.description || "",
+      targetOrigins: (instance.targetOrigins || []).join("\n"),
       capToken: null,
     });
     setMessage("");
@@ -117,6 +126,10 @@ export function InstancesManager({
             name: form.name.trim(),
             slug: form.slug,
             description: form.description.trim(),
+            targetOrigins: form.targetOrigins
+              .split(/\n/)
+              .map((item) => item.trim())
+              .filter(Boolean),
           }),
         },
       );
@@ -290,8 +303,11 @@ export function InstancesManager({
                     </Button>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>{instance.url}</span>
                     <span>
-                      {instance.slug}.{domain}
+                      {instance.targetOrigins?.length
+                        ? `${instance.targetOrigins.length} 个接入网站`
+                        : "允许任意网站"}
                     </span>
                     <span className="inline-flex items-center gap-1">
                       <Power className="h-3 w-3" />
@@ -360,7 +376,8 @@ export function InstancesManager({
                 maxLength={63}
               />
               <p className="text-xs text-muted-foreground">
-                {form.slug}.{domain}
+                {urlPrefix}
+                {form.slug}
               </p>
             </div>
             <div className="grid gap-2">
@@ -372,6 +389,21 @@ export function InstancesManager({
                 rows={3}
                 maxLength={500}
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="instance-origins">允许接入的网站</Label>
+              <Textarea
+                id="instance-origins"
+                value={form.targetOrigins}
+                onChange={(event) =>
+                  setForm({ ...form, targetOrigins: event.target.value })
+                }
+                rows={3}
+                placeholder={"https://example.com\nhttps://blog.example.org"}
+              />
+              <p className="text-xs text-muted-foreground">
+                留空表示不限制来源；填写后会拦截未列入的网站请求。
+              </p>
             </div>
             {!editing ? (
               <CapWidget scope="instance" onToken={(token) => setForm({ ...form, capToken: token })} />

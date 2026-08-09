@@ -6,12 +6,14 @@ import { canCreateInstance, instanceLimitsFromPlan } from "@/lib/usage";
 import { verifyCapToken } from "@/lib/cap";
 import { instanceUrl } from "@/lib/env";
 import { jsonResponse } from "@/lib/http";
+import { parseTargetOrigins } from "@/lib/cors";
 
 function publicInstance(instance: {
   id: string;
   slug: string;
   name: string;
   description: string | null;
+  targetOrigins: string[];
   status: string;
   createdAt: Date;
 }) {
@@ -50,6 +52,7 @@ export async function POST(request: NextRequest) {
       name?: string;
       slug?: string;
       description?: string;
+      targetOrigins?: unknown;
       capToken?: string;
     };
     const name = String(body.name || "").trim().slice(0, 80);
@@ -64,8 +67,16 @@ export async function POST(request: NextRequest) {
     if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug)) {
       throw new ApiError("实例标识只能包含小写字母、数字和连字符");
     }
+    if (slug === "tenant") {
+      throw new ApiError("该实例标识不可用");
+    }
     const exists = await prisma.instance.findUnique({ where: { slug } });
     if (exists) throw new ApiError("该实例标识已被占用");
+    const targetOrigins =
+      body.targetOrigins === undefined ? [] : parseTargetOrigins(body.targetOrigins);
+    if (targetOrigins === null) {
+      throw new ApiError("目标地址格式不正确");
+    }
 
     const limits = instanceLimitsFromPlan(user.plan);
     const instance = await prisma.instance.create({
@@ -73,6 +84,7 @@ export async function POST(request: NextRequest) {
         slug,
         name,
         description: body.description?.trim().slice(0, 500) || null,
+        targetOrigins,
         userId: user.id,
         monthlyCommentLimit: limits.monthlyCommentLimit,
         totalCommentLimit: limits.totalCommentLimit,

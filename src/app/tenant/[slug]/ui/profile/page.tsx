@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TenantProfileActions } from "@/components/tenant/tenant-profile-actions";
 import { verifyWalineToken } from "@/lib/auth";
-import { dashboardUrl, rootUrl } from "@/lib/env";
+import { dashboardUrl, instanceUrl, rootUrl } from "@/lib/env";
 import { getInstanceBySlug } from "@/lib/instances";
 import { prisma } from "@/lib/prisma";
 
@@ -45,7 +45,7 @@ export default async function TenantProfilePage({
         <div className="w-full max-w-md rounded-lg border bg-card p-8 text-center shadow-sm">
           <h1 className="text-xl font-semibold">登录状态已失效</h1>
           <p className="mt-2 text-sm text-muted-foreground">请重新登录后再查看个人资料。</p>
-          <ButtonLink href={`/tenant/${slug}/ui/login`}>重新登录</ButtonLink>
+          <ButtonLink href={`${instanceUrl(slug)}/ui/login`}>重新登录</ButtonLink>
         </div>
       </main>
     );
