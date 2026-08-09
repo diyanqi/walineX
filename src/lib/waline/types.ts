@@ -23,7 +23,10 @@ export interface WalineBaseComment {
   nick: string;
   link: string;
   avatar: string;
+  user_id?: number;
+  level?: number;
   type?: "administrator" | "guest";
+  sticky?: boolean;
   status?: WalineCommentStatus;
   addr?: string;
   browser?: string;
@@ -52,6 +55,16 @@ export interface WalineUser {
   nick: string;
   link: string;
   avatar: string;
+  level?: number;
+  label?: string;
+}
+
+export interface WalineIdentity {
+  objectId: number;
+  nick: string;
+  link: string;
+  avatar: string;
+  type?: "administrator" | "guest";
   label?: string;
 }
 

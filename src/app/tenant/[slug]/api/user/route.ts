@@ -8,6 +8,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
   const ctx = await tenantContext(request, slug);
   if (ctx.response) return ctx.response;
   const pageSize = Number(request.nextUrl.searchParams.get("pageSize")) || 50;
-  const data = await userList(ctx.instance!.id, pageSize);
+  const data = await userList(ctx.instance!, pageSize);
   return jsonResponse({ errno: 0, data }, 200, request);
 }

@@ -1,12 +1,14 @@
-import type { Comment, CommentStatus, Instance, Prisma } from "@prisma/client";
+import type { Comment, CommentStatus, Instance, Prisma, User } from "@prisma/client";
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { renderCommentMarkdown } from "@/lib/waline/markdown";
+import { commentLevel, identityFromUser } from "@/lib/waline/identity";
 import {
   serializeChild,
   serializeComment,
   serializeRoot,
 } from "@/lib/waline/serialize";
+import type { WalineSerializeOptions } from "@/lib/waline/serialize";
 import type {
   WalineCommentData,
   WalineCommentStatus,
@@ -25,26 +27,103 @@ export interface CommentListParams {
   page: number;
   pageSize: number;
   isOwner: boolean;
+  userId?: string | null;
+  sortBy?: string;
 }
 
-function visibleWhere(instanceId: string, isOwner: boolean): Prisma.CommentWhereInput {
-  return {
+function visibleWhere(
+  instanceId: string,
+  isOwner: boolean,
+  userId?: string | null,
+): Prisma.CommentWhereInput {
+  const where: Prisma.CommentWhereInput = {
     instanceId,
     deletedAt: null,
-    ...(isOwner ? {} : { status: "approved" }),
+  };
+  if (!isOwner) {
+    if (userId) {
+      where.OR = [{ status: "approved" }, { userId }];
+    } else {
+      where.status = "approved";
+    }
+  }
+  return where;
+}
+
+async function buildSerializeOptions(
+  instance: Instance,
+  comments: Comment[],
+  opts: { isOwner: boolean; login: boolean },
+): Promise<WalineSerializeOptions> {
+  const userIds = [...new Set(comments.map((comment) => comment.userId).filter(Boolean))] as string[];
+  const mails = [...new Set(comments.map((comment) => comment.mail).filter(Boolean))] as string[];
+  const users = userIds.length
+    ? await prisma.user.findMany({ where: { id: { in: userIds } } })
+    : [];
+  const identityByUserId = new Map(
+    users.map((user) => [user.id, identityFromUser(user, instance.userId)]),
+  );
+  const levelByObjectId = new Map<number, number>();
+  if (comments.length > 0) {
+    const statusWhere: Prisma.CommentWhereInput = {
+      instanceId: instance.id,
+      deletedAt: null,
+      status: { notIn: ["waiting", "spam"] },
+    };
+    const [userCounts, mailCounts] = await Promise.all([
+      userIds.length > 0
+        ? prisma.comment.groupBy({
+            by: ["userId"],
+            where: { ...statusWhere, userId: { in: userIds } },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
+      mails.length > 0
+        ? prisma.comment.groupBy({
+            by: ["mail"],
+            where: { ...statusWhere, mail: { in: mails } },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    const countByUserId = new Map(userCounts.map((row) => [row.userId, row._count._all]));
+    const countByMail = new Map(
+      mailCounts
+        .filter((row) => row.mail)
+        .map((row) => [(row.mail as string).toLowerCase(), row._count._all]),
+    );
+    for (const comment of comments) {
+      const count = comment.userId
+        ? countByUserId.get(comment.userId)
+        : comment.mail
+          ? countByMail.get(comment.mail.toLowerCase())
+          : undefined;
+      if (count) levelByObjectId.set(comment.objectId, commentLevel(count));
+    }
+  }
+  return {
+    isOwner: opts.isOwner,
+    login: opts.login,
+    identityByUserId,
+    levelByObjectId,
   };
 }
 
 export async function listComments(params: CommentListParams) {
-  const { instance, path, isOwner } = params;
+  const { instance, path, isOwner, userId } = params;
   const page = Math.max(1, params.page || 1);
   const pageSize = Math.min(50, Math.max(1, params.pageSize || 10));
-  const baseWhere = { ...visibleWhere(instance.id, isOwner), url: path };
+  const [sortField = "insertedAt", sortDirection = "desc"] = String(
+    params.sortBy || "insertedAt_desc",
+  ).split("_");
+  const orderColumn = sortField === "like" ? "like" : "createdAt";
+  const direction = sortDirection === "asc" ? "asc" : "desc";
+  const baseWhere = { ...visibleWhere(instance.id, isOwner, userId), url: path };
   const [count, roots] = await Promise.all([
     prisma.comment.count({ where: { ...baseWhere, pid: null } }),
     prisma.comment.findMany({
       where: { ...baseWhere, pid: null },
-      orderBy: [{ sticky: "desc" }, { createdAt: "desc" }],
+      orderBy: [{ sticky: "desc" }, { [orderColumn]: direction }, { objectId: direction }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -64,7 +143,7 @@ export async function listComments(params: CommentListParams) {
   const rootIds = roots.map((root) => root.objectId);
   const children = await prisma.comment.findMany({
     where: {
-      ...visibleWhere(instance.id, isOwner),
+      ...visibleWhere(instance.id, isOwner, userId),
       url: path,
       deletedAt: null,
       OR: [{ rid: { in: rootIds } }, { pid: { in: rootIds } }],
@@ -92,10 +171,21 @@ export async function listComments(params: CommentListParams) {
     childrenByRoot.set(rootId, list);
   }
 
+  const serializeOptions = await buildSerializeOptions(
+    instance,
+    [...roots, ...children],
+    { isOwner, login: Boolean(userId) },
+  );
+
   return {
     errno: 0 as const,
     data: roots.map((root) =>
-      serializeRoot(root, childrenByRoot.get(root.objectId) ?? [], parentById, { isOwner }),
+      serializeRoot(
+        root,
+        childrenByRoot.get(root.objectId) ?? [],
+        parentById,
+        serializeOptions,
+      ),
     ),
     page,
     totalPages: Math.ceil(count / pageSize),
@@ -104,13 +194,15 @@ export async function listComments(params: CommentListParams) {
   };
 }
 
-export async function countComments(instanceId: string, paths: string[]) {
+export async function countComments(
+  instanceId: string,
+  paths: string[],
+  options: { isOwner: boolean; userId?: string | null } = { isOwner: false },
+) {
   const groups = await prisma.comment.groupBy({
     by: ["url"],
     where: {
-      instanceId,
-      deletedAt: null,
-      status: "approved",
+      ...visibleWhere(instanceId, options.isOwner, options.userId),
       url: { in: paths },
     },
     _count: { _all: true },
@@ -119,14 +211,23 @@ export async function countComments(instanceId: string, paths: string[]) {
   return paths.map((path) => counts.get(path) ?? 0);
 }
 
-export async function recentComments(instance: Instance, count: number, isOwner: boolean) {
+export async function recentComments(
+  instance: Instance,
+  count: number,
+  isOwner: boolean,
+  userId?: string | null,
+) {
   const comments = await prisma.comment.findMany({
-    where: visibleWhere(instance.id, isOwner),
+    where: visibleWhere(instance.id, isOwner, userId),
     orderBy: { createdAt: "desc" },
     take: Math.min(50, Math.max(1, count || 10)),
   });
+  const serializeOptions = await buildSerializeOptions(instance, comments, {
+    isOwner,
+    login: Boolean(userId),
+  });
   return comments.map((comment) => ({
-    ...serializeComment(comment, { isOwner }),
+    ...serializeComment(comment, serializeOptions),
     url: comment.url,
   }));
 }
@@ -134,6 +235,10 @@ export async function recentComments(instance: Instance, count: number, isOwner:
 export interface CreateCommentInput extends WalineCommentData {
   ip?: string;
   authorUserId?: string | null;
+}
+
+function anonymousUserKey(comment: Pick<Comment, "nick" | "mail">): string {
+  return `${comment.nick}:${comment.mail || ""}`;
 }
 
 export async function createComment(
@@ -226,6 +331,7 @@ export async function createComment(
   const comment = await prisma.comment.create({
     data: {
       instanceId: instance.id,
+      userId: input.authorUserId ?? null,
       url,
       nick,
       mail,
@@ -262,10 +368,15 @@ export async function createComment(
   }
 
   const parent = pid ? await prisma.comment.findUnique({ where: { objectId: pid } }) : null;
+  const serializeOptions = await buildSerializeOptions(
+    instance,
+    parent ? [comment, parent] : [comment],
+    { isOwner, login: Boolean(input.authorUserId) },
+  );
   const data =
     pid && parent
-      ? serializeChild(comment, parent, { isOwner })
-      : serializeRoot(comment, [], new Map(), { isOwner });
+      ? serializeChild(comment, parent, serializeOptions)
+      : serializeRoot(comment, [], new Map(), serializeOptions);
   return { data };
 }
 
@@ -274,6 +385,7 @@ export async function updateComment(
   objectId: number,
   body: Record<string, unknown>,
   meta: { ip: string; isOwner: boolean },
+  user?: User | null,
 ) {
   const existing = await prisma.comment.findFirst({
     where: { objectId, instanceId: instance.id, deletedAt: null },
@@ -293,21 +405,28 @@ export async function updateComment(
       where: { objectId },
       data: { like: existing.like + (body.like ? 1 : -1) },
     });
-    return { data: serializeComment(updated, { isOwner: meta.isOwner }) };
+    const serializeOptions = await buildSerializeOptions(instance, [updated], {
+      isOwner: meta.isOwner,
+      login: Boolean(user),
+    });
+    return { data: serializeComment(updated, serializeOptions) };
   }
 
-  if (!meta.isOwner) {
-    return { error: { errno: 403, errmsg: "只有实例管理员可以修改评论。" } };
+  const isAuthor = Boolean(user && existing.userId === user.id);
+  if (!meta.isOwner && !isAuthor) {
+    return { error: { errno: 403, errmsg: "只有评论作者或实例管理员可以修改评论。" } };
   }
 
   const data: Prisma.CommentUpdateInput = {};
-  if (typeof body.status === "string") {
-    data.status = body.status as CommentStatus;
-    data.moderatedBy = "admin";
-    data.moderatedAt = new Date();
-  }
-  if (typeof body.sticky === "number" || typeof body.sticky === "boolean") {
-    data.sticky = Boolean(body.sticky);
+  if (meta.isOwner) {
+    if (typeof body.status === "string") {
+      data.status = body.status as CommentStatus;
+      data.moderatedBy = "admin";
+      data.moderatedAt = new Date();
+    }
+    if (typeof body.sticky === "number" || typeof body.sticky === "boolean") {
+      data.sticky = Boolean(body.sticky);
+    }
   }
   if (typeof body.comment === "string" && body.comment.trim()) {
     data.comment = body.comment.trim().slice(0, 10_000);
@@ -317,14 +436,27 @@ export async function updateComment(
     return { error: { errno: 400, errmsg: "没有可更新的字段。" } };
   }
   const updated = await prisma.comment.update({ where: { objectId }, data });
-  return { data: serializeComment(updated, { isOwner: true }) };
+  const serializeOptions = await buildSerializeOptions(instance, [updated], {
+    isOwner: meta.isOwner,
+    login: Boolean(user),
+  });
+  return { data: serializeComment(updated, serializeOptions) };
 }
 
-export async function deleteComment(instanceId: string, objectId: number) {
+export async function deleteComment(
+  instance: Instance,
+  objectId: number,
+  user?: User | null,
+) {
   const existing = await prisma.comment.findFirst({
-    where: { objectId, instanceId, deletedAt: null },
+    where: { objectId, instanceId: instance.id, deletedAt: null },
   });
   if (!existing) return { error: { errno: 404, errmsg: "评论不存在。" } };
+  const isOwner = instance.userId === user?.id;
+  const isAuthor = Boolean(existing.userId && existing.userId === user?.id);
+  if (!isOwner && !isAuthor) {
+    return { error: { errno: 403, errmsg: "只有评论作者或实例管理员可以删除评论。" } };
+  }
   await prisma.comment.update({
     where: { objectId },
     data: { deletedAt: new Date() },
@@ -333,13 +465,13 @@ export async function deleteComment(instanceId: string, objectId: number) {
 }
 
 export async function adminCommentList(
-  instanceId: string,
+  instance: Instance,
   params: { page?: number; pageSize?: number; status?: string; keyword?: string },
 ) {
   const page = Math.max(1, params.page || 1);
   const pageSize = Math.min(100, Math.max(1, params.pageSize || 20));
   const where: Prisma.CommentWhereInput = {
-    instanceId,
+    instanceId: instance.id,
     deletedAt: null,
     ...(params.status ? { status: params.status as CommentStatus } : {}),
     ...(params.keyword
@@ -351,7 +483,7 @@ export async function adminCommentList(
         }
       : {}),
   };
-  const [count, data] = await Promise.all([
+  const [count, data, spamCount, waitingCount] = await Promise.all([
     prisma.comment.count({ where }),
     prisma.comment.findMany({
       where,
@@ -359,33 +491,77 @@ export async function adminCommentList(
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
+    prisma.comment.count({ where: { instanceId: instance.id, status: "spam" } }),
+    prisma.comment.count({ where: { instanceId: instance.id, status: "waiting" } }),
   ]);
+  const serializeOptions = await buildSerializeOptions(instance, data, {
+    isOwner: true,
+    login: false,
+  });
   return {
-    data: data.map((comment) => serializeComment(comment, { isOwner: true })),
+    data: data.map((comment) => serializeComment(comment, serializeOptions)),
     count,
     page,
     pageSize,
     totalPages: Math.ceil(count / pageSize),
+    spamCount,
+    waitingCount,
   };
 }
 
-export async function userList(instanceId: string, pageSize: number) {
+export async function userList(instance: Instance, pageSize: number) {
   const comments = await prisma.comment.findMany({
-    where: { instanceId, deletedAt: null, status: "approved" },
+    where: {
+      instanceId: instance.id,
+      deletedAt: null,
+      status: { notIn: ["waiting", "spam"] },
+    },
     orderBy: { createdAt: "desc" },
     take: 20_000,
-    select: { nick: true, mail: true, link: true, avatar: true },
+    select: { userId: true, nick: true, mail: true, link: true, avatar: true },
   });
-  const map = new Map<string, WalineUser>();
+  const userIds = [
+    ...new Set(comments.map((comment) => comment.userId).filter(Boolean)),
+  ] as string[];
+  const users = userIds.length
+    ? await prisma.user.findMany({ where: { id: { in: userIds } } })
+    : [];
+  const userById = new Map(users.map((user) => [user.id, user]));
+  const countByUserId = new Map<string, number>();
+  const anonymous = new Map<string, { count: number; comment: (typeof comments)[number] }>();
+
   for (const comment of comments) {
-    const key = `${comment.nick}:${comment.mail || ""}`;
-    const existing = map.get(key);
+    if (comment.userId && userById.has(comment.userId)) {
+      countByUserId.set(comment.userId, (countByUserId.get(comment.userId) ?? 0) + 1);
+      continue;
+    }
+    const key = anonymousUserKey(comment);
+    const existing = anonymous.get(key);
     if (existing) {
       existing.count += 1;
       continue;
     }
-    map.set(key, {
-      count: 1,
+    anonymous.set(key, { count: 1, comment });
+  }
+
+  const result: WalineUser[] = [];
+  for (const user of users) {
+    const count = countByUserId.get(user.id) ?? 0;
+    if (count === 0) continue;
+    const identity = identityFromUser(user, instance.userId);
+    result.push({
+      count,
+      nick: identity.nick,
+      link: identity.link,
+      avatar: identity.avatar,
+      level: commentLevel(count),
+      ...(identity.label ? { label: identity.label } : {}),
+    });
+  }
+  for (const entry of anonymous.values()) {
+    const { comment } = entry;
+    result.push({
+      count: entry.count,
       nick: comment.nick,
       link: comment.link || "",
       avatar:
@@ -393,9 +569,11 @@ export async function userList(instanceId: string, pageSize: number) {
         `https://www.gravatar.com/avatar/${createHash("md5")
           .update(comment.mail || comment.nick)
           .digest("hex")}?d=mp&s=80`,
+      level: commentLevel(entry.count),
     });
   }
-  return Array.from(map.values())
-    .sort((a, b) => b.count - a.count)
+
+  return result
+    .sort((a, b) => b.count - a.count || a.nick.localeCompare(b.nick))
     .slice(0, Math.min(100, Math.max(1, pageSize || 50)));
 }

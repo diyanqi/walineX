@@ -51,7 +51,6 @@ export default async function TenantProfilePage({
     );
   }
 
-  const objectId = Number(user.id.replace(/\D/g, "").slice(0, 9)) || 0;
   const isOwner = instance.userId === user.id;
 
   return (
@@ -73,8 +72,18 @@ export default async function TenantProfilePage({
           <div className="min-w-0">
             <h1 className="truncate text-xl font-semibold">{user.name || user.email}</h1>
             <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
+            {user.url ? (
+              <a
+                href={user.url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 block truncate text-sm text-primary hover:underline"
+              >
+                {user.url}
+              </a>
+            ) : null}
             <p className="mt-1 text-xs text-muted-foreground">
-              {isOwner ? "实例管理员" : "评论用户"} · ID {objectId}
+              {isOwner ? "实例管理员" : "评论用户"} · ID {user.objectId}
             </p>
           </div>
         </div>

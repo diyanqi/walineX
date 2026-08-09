@@ -20,6 +20,14 @@
 cp .env.example .env
 ```
 
+密钥可以直接生成：
+
+```bash
+openssl rand -hex 32
+```
+
+把输出分别填入 `APP_ENCRYPTION_KEY`、`SESSION_SECRET`、`CAP_SECRET`，并为 `POSTGRES_PASSWORD` 设置独立强密码。
+
 至少需要设置：
 
 ```dotenv

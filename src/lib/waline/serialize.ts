@@ -4,6 +4,7 @@ import type { Comment } from "@prisma/client";
 import type {
   WalineBaseComment,
   WalineChildComment,
+  WalineIdentity,
   WalineRootComment,
 } from "@/lib/waline/types";
 
@@ -26,18 +27,52 @@ function parseBrowser(ua?: string | null): { browser?: string; os?: string } {
   return { browser, os };
 }
 
+export interface WalineSerializeOptions {
+  isOwner?: boolean;
+  login?: boolean;
+  identityByUserId?: Map<string, WalineIdentity>;
+  levelByObjectId?: Map<number, number>;
+}
+
+function applyIdentity(
+  base: WalineBaseComment,
+  identity?: WalineIdentity,
+  level?: number,
+): WalineBaseComment {
+  const enriched: WalineBaseComment = {
+    ...base,
+    ...(level === undefined ? {} : { level }),
+  };
+  if (!identity) return enriched;
+  return {
+    ...enriched,
+    user_id: identity.objectId,
+    nick: identity.nick,
+    link: identity.link || base.link,
+    avatar: identity.avatar || base.avatar,
+    ...(identity.type ? { type: identity.type } : {}),
+    ...(identity.label ? { label: identity.label } : {}),
+  };
+}
+
 export function serializeComment(
   comment: Comment,
-  opts: { isOwner?: boolean; withMail?: boolean } = {},
+  opts: WalineSerializeOptions = {},
 ): WalineBaseComment {
   const { browser, os } = parseBrowser(comment.ua);
   const isOwner = Boolean(opts.isOwner);
-  return {
+  const showRaw = Boolean(opts.login || opts.isOwner);
+  const identity = comment.userId
+    ? opts.identityByUserId?.get(comment.userId)
+    : undefined;
+  const level = opts.levelByObjectId?.get(comment.objectId);
+  const base: WalineBaseComment = {
     objectId: comment.objectId,
     time: comment.createdAt.getTime(),
     comment: comment.rendered,
-    orig: isOwner ? comment.comment : "",
+    orig: showRaw ? comment.comment : "",
     like: comment.like,
+    sticky: comment.sticky,
     nick: comment.nick,
     link: comment.link || "",
     avatar: comment.avatar || defaultAvatar(comment.nick, comment.mail),
@@ -46,14 +81,18 @@ export function serializeComment(
     browser: isOwner ? browser : undefined,
     os: isOwner ? os : undefined,
   };
+  return applyIdentity(base, identity, level);
 }
 
 export function serializeChild(
   comment: Comment,
   parent: Comment | null,
-  opts: { isOwner?: boolean },
+  opts: WalineSerializeOptions = {},
 ): WalineChildComment {
   const base = serializeComment(comment, opts);
+  const parentIdentity = parent?.userId
+    ? opts.identityByUserId?.get(parent.userId)
+    : undefined;
   return {
     ...base,
     pid: comment.pid ?? 0,
@@ -61,9 +100,12 @@ export function serializeChild(
     at: comment.at || undefined,
     reply_user: parent
       ? {
-          nick: parent.nick,
-          link: parent.link || "",
-          avatar: parent.avatar || defaultAvatar(parent.nick, parent.mail),
+          nick: parentIdentity?.nick ?? parent.nick,
+          link: parentIdentity?.link || parent.link || "",
+          avatar:
+            parentIdentity?.avatar ||
+            parent.avatar ||
+            defaultAvatar(parent.nick, parent.mail),
         }
       : undefined,
   };
@@ -73,7 +115,7 @@ export function serializeRoot(
   comment: Comment,
   children: Comment[],
   parentById: Map<number, Comment>,
-  opts: { isOwner?: boolean },
+  opts: WalineSerializeOptions = {},
 ): WalineRootComment {
   return {
     ...serializeComment(comment, opts),

@@ -44,15 +44,14 @@ export default async function TenantLoginPage({
   const user = await getSessionUser();
   if (user) {
     const token = await issueWalineToken(user.id, slug);
-    const objectId = Number(user.id.replace(/\D/g, "").slice(0, 9)) || 0;
     return (
       <TenantLoginComplete
         user={{
           display_name: user.name || user.email || "用户",
           email: user.email || "",
-          url: "",
+          url: user.url || "",
           avatar: user.avatar || "",
-          objectId,
+          objectId: user.objectId,
           type: instance.userId === user.id ? "administrator" : "guest",
           token,
         }}

@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { tenantContext } from "@/lib/tenant-api";
-import { errorResponse, jsonResponse } from "@/lib/http";
+import { corsHeaders, errorResponse, jsonResponse } from "@/lib/http";
 import {
   adminCommentList,
   countComments,
@@ -23,18 +23,26 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
-    const data = await countComments(instance.id, paths);
+    const data = await countComments(instance.id, paths, {
+      isOwner: ctx.isOwner,
+      userId: ctx.user?.id,
+    });
     return jsonResponse({ errno: 0, data }, 200, request);
   }
 
   if (type === "recent") {
-    const data = await recentComments(instance, Number(search.get("count")) || 10, ctx.isOwner);
-    return jsonResponse({ errno: 0, data }, 200, request);
+    const data = await recentComments(
+      instance,
+      Number(search.get("count")) || 10,
+      ctx.isOwner,
+      ctx.user?.id,
+    );
+    return jsonResponse(data, 200, request);
   }
 
   if (type === "list") {
     if (!ctx.isOwner) return errorResponse(403, "只有实例管理员可以查看全部评论", request);
-    const data = await adminCommentList(instance.id, {
+    const data = await adminCommentList(instance, {
       page: Number(search.get("page")) || 1,
       pageSize: Number(search.get("pageSize")) || 20,
       status: search.get("status") || undefined,
@@ -52,8 +60,23 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
     page,
     pageSize,
     isOwner: ctx.isOwner,
+    userId: ctx.user?.id,
+    sortBy: search.get("sortBy") || undefined,
   });
-  return jsonResponse(data, 200, request);
+  return jsonResponse(
+    {
+      errno: 0,
+      data: {
+        data: data.data,
+        page: data.page,
+        totalPages: data.totalPages,
+        pageSize: data.pageSize,
+        count: data.count,
+      },
+    },
+    200,
+    request,
+  );
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ slug: string }> }) {
@@ -88,4 +111,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
     if (error) return errorResponse(error.errno, error.errmsg, request);
   }
   return jsonResponse({ errno: 0, data: result.data }, 200, request);
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders(),
+  });
 }

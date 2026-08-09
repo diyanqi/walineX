@@ -83,9 +83,11 @@ enum EmailLogStatus {
 
 model User {
   id            String    @id @default(cuid())
+  objectId      Int       @unique @default(autoincrement())
   email         String?   @unique
   name          String?
   avatar        String?
+  url           String?
   passwordHash  String?
   githubId      String?   @unique
   googleId      String?   @unique
@@ -104,6 +106,7 @@ model User {
   subscriptions Subscription[]
   emailLogs     EmailLog[]
   commentReplies CommentReply[]
+  comments      Comment[]
 }
 
 model Account {
@@ -188,6 +191,7 @@ model Instance {
 model Comment {
   objectId Int @id @default(autoincrement())
   instanceId String
+  userId String?
   url String
   nick String
   mail String?
@@ -216,6 +220,7 @@ model Comment {
   deletedAt DateTime?
 
   instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
   parent Comment? @relation("CommentChildren", fields: [pid], references: [objectId], onDelete: SetNull)
   children Comment[] @relation("CommentChildren")
   root Comment? @relation("CommentReplies", fields: [rid], references: [objectId], onDelete: SetNull)
@@ -227,6 +232,7 @@ model Comment {
 
   @@index([instanceId, status, createdAt])
   @@index([instanceId, url, status, createdAt])
+  @@index([instanceId, userId])
   @@index([instanceId, pid])
   @@index([instanceId, rid])
   @@index([instanceId, deletedAt])

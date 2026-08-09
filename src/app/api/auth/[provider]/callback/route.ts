@@ -48,6 +48,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
           name: profile.name,
           email: profile.email,
           avatar: profile.avatar,
+          url: profile.url,
           githubId: provider === "github" ? profile.providerAccountId : null,
           googleId: provider === "google" ? profile.providerAccountId : null,
         },
@@ -74,9 +75,25 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
     });
 
     if (provider === "github") {
-      await prisma.user.update({ where: { id: userId }, data: { githubId: profile.providerAccountId } });
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          githubId: profile.providerAccountId,
+          name: profile.name || undefined,
+          avatar: profile.avatar || undefined,
+          url: profile.url || undefined,
+        },
+      });
     } else {
-      await prisma.user.update({ where: { id: userId }, data: { googleId: profile.providerAccountId } });
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          googleId: profile.providerAccountId,
+          name: profile.name || undefined,
+          avatar: profile.avatar || undefined,
+          url: profile.url || undefined,
+        },
+      });
     }
   } catch (error) {
     console.error("OAuth callback failed", error);
