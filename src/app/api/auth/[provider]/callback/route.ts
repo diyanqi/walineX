@@ -5,24 +5,25 @@ import { createSession, getSessionUser, sessionCookieOptions } from "@/lib/auth"
 import { exchangeOAuthCode, isSafeOAuthRedirect } from "@/lib/oauth";
 import { verifyState } from "@/lib/crypto";
 import { clientIp } from "@/lib/ratelimit";
+import { rootUrl } from "@/lib/env";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ provider: string }> }) {
   const { provider } = await context.params;
   if (provider !== "github" && provider !== "google") {
-    return NextResponse.redirect(new URL("/login?error=provider", request.url));
+    return NextResponse.redirect(new URL("/login?error=provider", rootUrl("/")));
   }
   const search = request.nextUrl.searchParams;
   const code = search.get("code");
   const state = search.get("state");
   if (!code || !state) {
-    return NextResponse.redirect(new URL("/login?error=oauth", request.url));
+    return NextResponse.redirect(new URL("/login?error=oauth", rootUrl("/")));
   }
   const payload = verifyState<{
     provider: string;
     redirect?: string;
   }>(state);
   if (!payload || payload.provider !== provider) {
-    return NextResponse.redirect(new URL("/login?error=state", request.url));
+    return NextResponse.redirect(new URL("/login?error=state", rootUrl("/")));
   }
 
   let userId = "";
@@ -101,11 +102,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
   }
 
   if (oauthError) {
-    return NextResponse.redirect(new URL("/login?error=oauth", request.url));
+    return NextResponse.redirect(new URL("/login?error=oauth", rootUrl("/")));
   }
 
   if (!userId) {
-    return NextResponse.redirect(new URL("/login?error=oauth", request.url));
+    return NextResponse.redirect(new URL("/login?error=oauth", rootUrl("/")));
   }
 
   const token = await createSession(userId, {
@@ -113,8 +114,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
     userAgent: request.headers.get("user-agent") || undefined,
   });
   const store = await cookies();
-  store.set("walinex_session", token, sessionCookieOptions(request.nextUrl.hostname));
+  store.set(
+    "walinex_session",
+    token,
+    sessionCookieOptions(new URL(rootUrl("/")).hostname),
+  );
 
   const safe = isSafeOAuthRedirect(payload.redirect || "/dashboard");
-  return NextResponse.redirect(new URL(safe || "/dashboard", request.url));
+  return NextResponse.redirect(new URL(safe || "/dashboard", rootUrl("/")));
 }
