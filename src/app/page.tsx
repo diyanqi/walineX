@@ -6,8 +6,10 @@ import {
   Blocks,
   Bot,
   CheckCircle2,
+  DatabaseBackup,
   Globe2,
   MessageSquareText,
+  Network,
   Quote,
   ShieldCheck,
   Zap,
@@ -21,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 export const metadata: Metadata = {
   title: "Waline 兼容托管评论服务",
   description:
-    "为博客和独立站点提供 Waline 兼容的托管评论服务。多实例、PoW 人机验证、智能审核、微信通知，即刻接入。",
+    "为博客和独立站点提供 Waline 兼容的托管评论服务。多实例、PoW 人机验证、智能审核、数据迁移与多协议兼容，即刻接入。",
 };
 
 const FEATURES = [
@@ -55,6 +57,16 @@ const FEATURES = [
     title: "用量与限制",
     description: "按套餐限制实例数与评论量，通过月度使用记录和限流保护服务稳定。",
   },
+  {
+    icon: DatabaseBackup,
+    title: "数据迁移",
+    description: "实例编辑页支持 Waline 官方 JSON 导入导出，备份、换站或迁移评论都很简单。",
+  },
+  {
+    icon: Network,
+    title: "多协议兼容",
+    description: "主 API 保持 Waline 兼容，同时提供 Twikoo、Artalk、Valine 基础接口。",
+  },
 ];
 
 const FAQS = [
@@ -77,6 +89,11 @@ const FAQS = [
     question: "免费套餐可以长期使用吗？",
     answer:
       "可以。免费套餐提供 1 个实例、每月 1,000 条评论和累计 5,000 条评论，适合个人博客和小流量站点长期使用。",
+  },
+  {
+    question: "我能从其他评论系统迁移过来吗？",
+    answer:
+      "可以。实例编辑页支持 Waline 官方 JSON 导入导出，也兼容 Twikoo、Artalk 等常见导出格式；导入后会保留评论状态、时间和回复关系。",
   },
 ];
 
@@ -107,7 +124,7 @@ export default function Home() {
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
                 无尽书证是 Waline 兼容的托管评论服务。创建实例、替换服务端地址，即可获得多租户管理、
-                PoW 人机验证、智能审核与微信通知。
+                PoW 人机验证、智能审核、数据迁移与微信通知。
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link

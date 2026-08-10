@@ -107,16 +107,18 @@ model User {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  accounts       Account[]
-  sessions       Session[]
-  instances      Instance[]
-  notifications  Notification[]
-  usageRecords   UsageRecord[]
-  subscriptions  Subscription[]
-  paymentOrders  PaymentOrder[]
-  emailLogs      EmailLog[]
-  commentReplies CommentReply[]
-  comments       Comment[]
+  accounts         Account[]
+  sessions         Session[]
+  instances        Instance[]
+  notifications    Notification[]
+  usageRecords     UsageRecord[]
+  subscriptions    Subscription[]
+  paymentOrders    PaymentOrder[]
+  redeemCodes      RedeemCode[]      @relation("CreatedRedeemCodes")
+  redemptionUsages RedemptionUsage[]
+  emailLogs        EmailLog[]
+  commentReplies   CommentReply[]
+  comments         Comment[]
 }
 
 model Account {
@@ -231,6 +233,7 @@ model Comment {
   moderationReason String?
   moderatedBy      String?
   moderatedAt      DateTime?
+  importId         String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   deletedAt        DateTime?
@@ -246,6 +249,7 @@ model Comment {
   reactions     CommentReaction[]
   notifications Notification[]
 
+  @@unique([instanceId, importId])
   @@index([instanceId, status, createdAt])
   @@index([instanceId, url, status, createdAt])
   @@index([instanceId, userId])
@@ -358,6 +362,38 @@ model PaymentOrder {
 
   @@index([userId, status])
   @@index([status, createdAt])
+}
+
+model RedeemCode {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  plan         Plan
+  durationDays Int
+  maxUses      Int       @default(1)
+  usedCount    Int       @default(0)
+  expiresAt    DateTime?
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  createdByUser User?             @relation("CreatedRedeemCodes", fields: [createdBy], references: [id], onDelete: SetNull)
+  usages        RedemptionUsage[]
+
+  @@index([createdBy])
+  @@index([expiresAt])
+}
+
+model RedemptionUsage {
+  id         String   @id @default(cuid())
+  codeId     String
+  userId     String
+  redeemedAt DateTime @default(now())
+
+  code RedeemCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([codeId, userId])
+  @@index([userId])
 }
 
 model EmailLog {

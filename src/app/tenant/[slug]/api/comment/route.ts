@@ -11,6 +11,7 @@ import {
   recentComments,
 } from "@/lib/waline/service";
 import { clientIp } from "@/lib/ratelimit";
+import { handleTwikoo } from "@/lib/compat/twikoo";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
@@ -20,6 +21,19 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
   const blocked = enforceTenantCors(instance, request);
   if (blocked) return blocked;
   const search = request.nextUrl.searchParams;
+  const action = search.get("action");
+  if (action) {
+    const result = await handleTwikoo({
+      action,
+      instance,
+      user: ctx.user,
+      isOwner: ctx.isOwner,
+      search,
+      body: {},
+      ip: clientIp(request),
+    });
+    return jsonResponse(result.payload, result.status, request);
+  }
   const type = search.get("type");
 
   if (type === "count") {
@@ -91,6 +105,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
   const blocked = enforceTenantCors(instance, request);
   if (blocked) return blocked;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const action = String(body.action || request.nextUrl.searchParams.get("action") || "");
+  if (action) {
+    const result = await handleTwikoo({
+      action,
+      instance,
+      user: ctx.user,
+      isOwner: ctx.isOwner,
+      search: request.nextUrl.searchParams,
+      body,
+      ip: clientIp(request),
+    });
+    return jsonResponse(result.payload, result.status, request);
+  }
   if (instance.requireCap && !body.capToken) {
     return errorResponse(400, "请先完成人机验证", request);
   }

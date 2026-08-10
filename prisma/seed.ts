@@ -45,19 +45,25 @@ async function main(): Promise<void> {
 
   const adminEmail = process.env.ADMIN_EMAIL;
   if (adminEmail) {
-    await prisma.user.upsert({
-      where: { email: adminEmail },
-      update: {
-        isAdmin: true,
-        name: process.env.ADMIN_NAME || undefined,
-      },
-      create: {
-        email: adminEmail,
-        name: process.env.ADMIN_NAME || "管理员",
-        isAdmin: true,
-      },
-    });
-    console.log(`Admin user ready: ${adminEmail}`);
+    const emails = adminEmail
+      .split(",")
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean);
+    for (const email of emails) {
+      await prisma.user.upsert({
+        where: { email },
+        update: {
+          isAdmin: true,
+          name: process.env.ADMIN_NAME || undefined,
+        },
+        create: {
+          email,
+          name: process.env.ADMIN_NAME || "管理员",
+          isAdmin: true,
+        },
+      });
+      console.log(`Admin user ready: ${email}`);
+    }
   }
 
   console.log(`Seeded ${GLOBAL_SENSITIVE_WORDS.length} global sensitive words.`);

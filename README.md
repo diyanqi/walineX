@@ -13,6 +13,9 @@
 - 敏感词、IP/用户黑名单、OpenAI 兼容 AI 审核（多密钥轮询）
 - 微信 Clawbot 通知，扫码即绑定
 - 易支付（EPay）在线购买与升级套餐
+- 管理员兑换码：自定义套餐与时长，用户扫码输入兑换码直接开通
+- Waline 官方 JSON 数据导入导出
+- Twikoo、Artalk、Valine 基础兼容 API（主 API 仍为 Waline）
 - 套餐与使用限制
 - Docker Compose 一键部署
 

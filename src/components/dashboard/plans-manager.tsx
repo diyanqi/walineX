@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Check, CreditCard, Loader2 } from "lucide-react";
+import { Check, CreditCard, Loader2, Ticket } from "lucide-react";
 import { PLANS } from "@/lib/plans";
 import type { Plan } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 interface PlansManagerProps {
@@ -34,6 +35,10 @@ export function PlansManager({
 }: PlansManagerProps) {
   const [busy, setBusy] = React.useState<{ plan: Plan; period: "month" | "year" } | null>(null);
   const [error, setError] = React.useState("");
+  const [redeemCode, setRedeemCode] = React.useState("");
+  const [redeemBusy, setRedeemBusy] = React.useState(false);
+  const [redeemMessage, setRedeemMessage] = React.useState("");
+  const [redeemError, setRedeemError] = React.useState("");
 
   async function purchase(plan: Plan, period: "month" | "year") {
     setBusy({ plan, period });
@@ -61,6 +66,41 @@ export function PlansManager({
     }
   }
 
+  async function redeem() {
+    if (!redeemCode.trim()) {
+      setRedeemError("请输入兑换码");
+      return;
+    }
+    setRedeemBusy(true);
+    setRedeemError("");
+    setRedeemMessage("");
+    try {
+      const response = await fetch("/api/plans/redeem", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code: redeemCode }),
+      });
+      const payload = (await response.json()) as {
+        errno?: number;
+        errmsg?: string;
+        data?: { plan: Plan; durationDays: number; planExpiresAt: string };
+      };
+      if (!response.ok || !payload.data) {
+        setRedeemError(payload.errmsg || "兑换失败");
+        return;
+      }
+      setRedeemCode("");
+      setRedeemMessage(
+        `兑换成功：${PLANS[payload.data.plan].name} ${payload.data.durationDays} 天`,
+      );
+      window.setTimeout(() => window.location.reload(), 1200);
+    } catch {
+      setRedeemError("网络请求失败，请重试");
+    } finally {
+      setRedeemBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -84,6 +124,40 @@ export function PlansManager({
           {error}
         </p>
       ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Ticket className="h-4 w-4 text-primary" />
+            兑换码
+          </CardTitle>
+          <CardDescription>输入管理员发放的兑换码，立即开通对应套餐时长。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {redeemMessage ? (
+            <p className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+              {redeemMessage}
+            </p>
+          ) : null}
+          {redeemError ? (
+            <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              {redeemError}
+            </p>
+          ) : null}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              value={redeemCode}
+              onChange={(event) => setRedeemCode(event.target.value)}
+              placeholder="WALINE-XXXX-XXXX"
+              maxLength={64}
+            />
+            <Button onClick={() => void redeem()} disabled={redeemBusy} className="sm:w-32">
+              {redeemBusy ? <Loader2 className="animate-spin" /> : <Ticket />}
+              兑换
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {PLAN_KEYS.map((key) => {

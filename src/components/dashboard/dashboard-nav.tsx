@@ -12,6 +12,7 @@ import {
   MessageSquare,
   MessageSquareText,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,11 +31,18 @@ interface DashboardNavProps {
   email?: string | null;
   avatar?: string | null;
   plan: string;
+  isAdmin?: boolean;
 }
 
-export function DashboardNav({ name, email, avatar, plan }: DashboardNavProps) {
+export function DashboardNav({ name, email, avatar, plan, isAdmin }: DashboardNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
+  const navItems = isAdmin
+    ? [
+        ...NAV_ITEMS,
+        { href: "/dashboard/admin", label: "管理", icon: ShieldCheck },
+      ]
+    : NAV_ITEMS;
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
@@ -46,7 +54,7 @@ export function DashboardNav({ name, email, avatar, plan }: DashboardNavProps) {
           <span className="hidden sm:inline">无尽书证</span>
         </Link>
         <nav className="hidden flex-1 items-center gap-1 md:flex">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const active = item.exact
               ? pathname === item.href
               : pathname.startsWith(item.href);
@@ -95,7 +103,7 @@ export function DashboardNav({ name, email, avatar, plan }: DashboardNavProps) {
       {open ? (
         <nav className="border-t bg-background px-4 py-3 md:hidden">
           <div className="grid gap-1">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const active = item.exact
                 ? pathname === item.href
                 : pathname.startsWith(item.href);

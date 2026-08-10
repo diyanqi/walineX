@@ -7,6 +7,7 @@ import {
   BrainCircuit,
   CheckCircle2,
   Filter,
+  Download,
   Loader2,
   Plus,
   QrCode,
@@ -14,6 +15,7 @@ import {
   ShieldCheck,
   Trash2,
   Unlink,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -163,6 +165,7 @@ export function InstanceSettings({
   const [qrImg, setQrImg] = React.useState("");
   const [qrPolling, setQrPolling] = React.useState(false);
   const [qrMessage, setQrMessage] = React.useState("");
+  const [importing, setImporting] = React.useState(false);
 
   function notify(message: string, isError = false) {
     setMessage(isError ? "" : message);
@@ -454,6 +457,58 @@ export function InstanceSettings({
       notify("网络请求失败，请重试", true);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function exportData() {
+    try {
+      const response = await fetch(`/api/dashboard/instances/${data.id}/data/export`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        notify("导出失败", true);
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${data.slug}-waline-export.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      notify("导出文件已开始下载");
+    } catch {
+      notify("网络请求失败，请重试", true);
+    }
+  }
+
+  async function importData(file: File) {
+    setImporting(true);
+    setMessage("");
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch(`/api/dashboard/instances/${data.id}/data/import`, {
+        method: "POST",
+        body: form,
+      });
+      const payload = (await response.json()) as {
+        errno?: number;
+        errmsg?: string;
+        data?: { imported: number; skipped: number; failed: number };
+      };
+      if (!response.ok || !payload.data) {
+        notify(payload.errmsg || "导入失败", true);
+        return;
+      }
+      notify(
+        `导入完成：新增 ${payload.data.imported} 条，跳过 ${payload.data.skipped} 条，失败 ${payload.data.failed} 条`,
+      );
+    } catch {
+      notify("网络请求失败，请重试", true);
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -830,6 +885,37 @@ export function InstanceSettings({
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-4 w-4 text-primary" />
+            数据导入导出
+          </CardTitle>
+          <CardDescription>使用 Waline 官方 JSON 格式迁移评论数据。</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <Button variant="outline" onClick={() => void exportData()} disabled={saving}>
+            <Download />
+            导出 JSON
+          </Button>
+          <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90">
+            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload />}
+            导入 JSON
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="sr-only"
+              disabled={importing}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void importData(file);
+                event.target.value = "";
+              }}
+            />
+          </label>
         </CardContent>
       </Card>
 

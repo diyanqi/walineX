@@ -6,6 +6,7 @@ import { exchangeOAuthCode, isSafeOAuthRedirect } from "@/lib/oauth";
 import { verifyState } from "@/lib/crypto";
 import { clientIp } from "@/lib/ratelimit";
 import { rootUrl } from "@/lib/env";
+import { isAdminEmail } from "@/lib/admin";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ provider: string }> }) {
   const { provider } = await context.params;
@@ -64,6 +65,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
             avatar: profile.avatar,
             url: profile.url,
             githubId: profile.providerAccountId,
+            isAdmin: isAdminEmail(profile.email),
           },
         });
         userId = user.id;
@@ -99,6 +101,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
           name: profile.name || undefined,
           avatar: profile.avatar,
           url: profile.url,
+          ...(isAdminEmail(profile.email) ? { isAdmin: true } : {}),
         },
       });
     }

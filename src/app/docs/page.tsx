@@ -32,6 +32,8 @@ export default function DocsPage() {
               { href: "#waline", label: "Waline 接入" },
               { href: "#api", label: "API 概览" },
               { href: "#moderation", label: "审核策略" },
+              { href: "#data", label: "数据导入导出" },
+              { href: "#compat", label: "兼容 API" },
               { href: "#login", label: "登录弹窗" },
             ].map((item) => (
               <a
@@ -178,6 +180,33 @@ export default function DocsPage() {
               <p>
                 敏感词支持「拦截」「替换」「转入待审核」三种动作；黑名单规则支持 IP、用户、
                 邮箱、链接与昵称五种维度。AI 审核使用 OpenAI 兼容接口，密钥支持多个并以英文逗号分隔轮询。
+              </p>
+            </div>
+          </section>
+
+          <section id="data">
+            <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+              <Globe2 className="h-5 w-5 text-primary" />
+              数据导入导出
+            </h2>
+            <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
+              <p>
+                在实例编辑页可以导出当前实例的 Waline 官方 JSON 数据，也可以导入 Waline、
+                Twikoo 或 Artalk 导出的 JSON 评论数据。导入会保留原文、状态、时间与回复关系，
+                已存在的外键标识会自动跳过。
+              </p>
+            </div>
+          </section>
+
+          <section id="compat">
+            <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+              <Globe2 className="h-5 w-5 text-primary" />
+              兼容 API
+            </h2>
+            <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
+              <p>
+                主 API 保持 Waline 兼容。实例地址同时提供 Twikoo（action 参数）、Artalk
+                （/api/v2）和 Valine（/api/1.1/classes/Comment）的基础评论接口，便于迁移现有站点。
               </p>
             </div>
           </section>

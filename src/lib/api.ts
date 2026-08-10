@@ -16,6 +16,12 @@ export async function requireApiUser(): Promise<User> {
   return user;
 }
 
+export async function requireAdmin(): Promise<User> {
+  const user = await requireApiUser();
+  if (!user.isAdmin) throw new ApiError("需要管理员权限", 403);
+  return user;
+}
+
 export function apiError(error: unknown): Response {
   if (error instanceof ApiError) {
     return Response.json({ errno: error.status, errmsg: error.message }, { status: error.status });

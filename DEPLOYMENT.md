@@ -56,7 +56,7 @@ EPAY_GATEWAY=...
 
 可选变量：
 
-- `ADMIN_EMAIL` / `ADMIN_NAME`：seed 时创建平台管理员账号。
+- `ADMIN_EMAIL` / `ADMIN_NAME`：平台管理员邮箱（支持英文逗号分隔多个）；用户用该邮箱完成 OAuth 登录后会自动成为管理员，seed 也会创建对应账号。
 - `AI_MODERATION_BASE_URL` / `AI_MODERATION_MODEL` / `AI_MODERATION_API_KEY`：AI 审核默认 OpenAI 兼容端点，API Key 可用英文逗号分隔多个实现轮询。
 - `APP_PORT`：宿主机映射端口，默认 `3000`。
 
@@ -181,6 +181,6 @@ docker compose exec db pg_dump -U waline walinex | gzip > walinex-$(date +%F).sq
 1. 访问 `/api/health` 确认服务健康。
 2. 访问 `https://waline.infvar.com/login`，确认返回登录页而不是 404。
 3. 使用 GitHub 登录并创建实例。
-4. 用任意 Waline 客户端指向 `https://instance.waline.infvar.com/{实例标识}` 发评论。
+4. 用任意 Waline 客户端指向 `https://instance.waline.infvar.com/{实例标识}/api` 发评论，也可以在实例编辑页导入/导出 Waline JSON 数据。
 5. 在控制台审核评论、配置敏感词和通知。
 6. 在实例编辑页绑定微信并发送一条评论，确认通知到达。
