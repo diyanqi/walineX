@@ -32,6 +32,11 @@ export async function moderateComment(
     where: { id: instance.userId },
     select: { plan: true },
   });
+  if (instance.aiModerationEnabled && owner && !planLimits(owner.plan).aiModeration) {
+    console.warn(
+      `[moderation] instance ${instance.id} has AI moderation enabled but its plan has no AI moderation permission`,
+    );
+  }
   const ai =
     owner && planLimits(owner.plan).aiModeration
       ? classifierFromInstance(instance)

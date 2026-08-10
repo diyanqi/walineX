@@ -4,6 +4,12 @@ const FIXED_API_BASE_URL = "https://ilinkai.weixin.qq.com";
 const ILINK_APP_ID = "bot";
 const ILINK_APP_CLIENT_VERSION = "131590";
 const STATUS_TIMEOUT_MS = 30_000;
+const QR_IMAGE_TTL_MS = 10 * 60 * 1000;
+
+const qrImageCache = new Map<
+  string,
+  { buffer: Buffer; contentType: string; expiresAt: number }
+>();
 
 type WechatQrState =
   | "wait"
@@ -49,6 +55,81 @@ function normalizeQrImage(value: string): string {
   return `data:${mime};base64,${compact}`;
 }
 
+function cacheQrImage(
+  qrcode: string,
+  image: { buffer: Buffer; contentType: string },
+): void {
+  qrImageCache.set(qrcode, {
+    ...image,
+    expiresAt: Date.now() + QR_IMAGE_TTL_MS,
+  });
+}
+
+function cachedQrImage(qrcode: string): { buffer: Buffer; contentType: string } | null {
+  const entry = qrImageCache.get(qrcode);
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) {
+    qrImageCache.delete(qrcode);
+    return null;
+  }
+  return { buffer: entry.buffer, contentType: entry.contentType };
+}
+
+async function loadQrImage(value: string): Promise<{
+  buffer: Buffer;
+  contentType: string;
+}> {
+  const trimmed = value.trim();
+  if (/^\/\//.test(trimmed) || /^https?:\/\//i.test(trimmed)) {
+    const url = /^\/\//.test(trimmed) ? `https:${trimmed}` : trimmed;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`微信二维码图片获取失败：HTTP ${response.status}`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return {
+      buffer,
+      contentType: sniffImageType(buffer) || response.headers.get("content-type") || "image/png",
+    };
+  }
+  const compact = trimmed.replace(/\s+/g, "");
+  const dataMatch = /^data:image\/([a-z0-9.+-]+);base64,(.*)$/i.exec(compact);
+  if (dataMatch) {
+    const buffer = Buffer.from(dataMatch[2], "base64");
+    return {
+      buffer,
+      contentType: sniffImageType(buffer) || `image/${dataMatch[1]}`,
+    };
+  }
+  const buffer = Buffer.from(compact, "base64");
+  return {
+    buffer,
+    contentType: sniffImageType(buffer) || "image/png",
+  };
+}
+
+function sniffImageType(buffer: Buffer): string | null {
+  if (
+    buffer.length >= 8 &&
+    buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  ) {
+    return "image/png";
+  }
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    buffer.length >= 6 &&
+    (buffer.toString("ascii", 0, 6) === "GIF87a" || buffer.toString("ascii", 0, 6) === "GIF89a")
+  ) {
+    return "image/gif";
+  }
+  if (buffer.length >= 12 && buffer.toString("ascii", 8, 12) === "WEBP") {
+    return "image/webp";
+  }
+  return null;
+}
+
 export async function startWechatQr(): Promise<WechatQrStart> {
   const response = await fetch(
     `${FIXED_API_BASE_URL}/ilink/bot/get_bot_qrcode?bot_type=3`,
@@ -68,10 +149,50 @@ export async function startWechatQr(): Promise<WechatQrStart> {
   if (!payload.qrcode || !payload.qrcode_img_content) {
     throw new Error("微信二维码响应不完整");
   }
+  const image = await loadQrImage(payload.qrcode_img_content);
+  cacheQrImage(payload.qrcode, image);
   return {
     qrcode: payload.qrcode,
     qrcodeImg: normalizeQrImage(payload.qrcode_img_content),
   };
+}
+
+export async function fetchQrImage(
+  qrcode: string,
+  rawImage?: string,
+): Promise<{
+  buffer: Buffer;
+  contentType: string;
+}> {
+  if (rawImage) {
+    const image = await loadQrImage(rawImage);
+    cacheQrImage(qrcode, image);
+    return image;
+  }
+  const cached = cachedQrImage(qrcode);
+  if (cached) return cached;
+  const response = await fetch(
+    `${FIXED_API_BASE_URL}/ilink/bot/get_bot_qrcode?bot_type=3`,
+    {
+      method: "POST",
+      headers: commonHeaders(),
+      body: JSON.stringify({ local_token_list: [] }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`微信二维码获取失败：HTTP ${response.status}`);
+  }
+  const payload = (await response.json()) as {
+    qrcode?: string;
+    qrcode_img_content?: string;
+  };
+  if (!payload.qrcode || !payload.qrcode_img_content) {
+    throw new Error("微信二维码响应不完整");
+  }
+  const image = await loadQrImage(payload.qrcode_img_content);
+  cacheQrImage(payload.qrcode, image);
+  if (payload.qrcode !== qrcode) cacheQrImage(qrcode, image);
+  return image;
 }
 
 async function fetchQrStatus(baseUrl: string, qrcode: string): Promise<WechatQrStatus> {

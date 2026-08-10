@@ -326,7 +326,7 @@ export async function createComment(
       ? "spam"
       : moderation.review || instance.moderationEnabled
         ? "waiting"
-        : "approved";
+        : instance.defaultCommentStatus;
 
   const comment = await prisma.comment.create({
     data: {

@@ -51,7 +51,12 @@ export class OpenAICompatibleClassifier implements AIClassifier {
             ],
           }),
         });
-        if (!response.ok) continue;
+        if (!response.ok) {
+          console.warn(
+            `[ai-moderation] request failed (HTTP ${response.status}) with key index ${keyCursor - 1}, trying next key`,
+          );
+          continue;
+        }
         const payload = (await response.json()) as {
           choices?: Array<{ message?: { content?: string } }>;
         };
@@ -66,9 +71,11 @@ export class OpenAICompatibleClassifier implements AIClassifier {
           reason: parsed.reason,
         };
       } catch {
+        console.warn(`[ai-moderation] request error with key index ${keyCursor - 1}, trying next key`);
         continue;
       }
     }
+    console.error("[ai-moderation] all API keys failed, comment was not AI moderated");
     return null;
   }
 }
@@ -92,7 +99,12 @@ export function classifierFromInstance(instance: {
   const apiKeys = splitKeys(
     decryptSecret(instance.aiApiKeyEncrypted) || env("AI_MODERATION_API_KEY") || null,
   );
-  if (apiKeys.length === 0) return null;
+  if (apiKeys.length === 0) {
+    console.warn(
+      "[ai-moderation] AI moderation is enabled but no API key is configured (AI_MODERATION_API_KEY or instance key)",
+    );
+    return null;
+  }
   return new OpenAICompatibleClassifier({
     apiKeys,
     baseUrl: instance.aiApiBaseUrl || env("AI_MODERATION_BASE_URL"),

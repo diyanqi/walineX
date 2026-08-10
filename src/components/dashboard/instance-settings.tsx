@@ -376,7 +376,9 @@ export function InstanceSettings({
         notify(payload.errmsg || "二维码获取失败", true);
         return;
       }
-      setQrImg(payload.data.qrcodeImg);
+      setQrImg(
+        `/api/dashboard/instances/${data.id}/wechat/qr-image?qrcode=${encodeURIComponent(payload.data.qrcode)}&img=${encodeURIComponent(payload.data.qrcodeImg)}`,
+      );
       setQrPolling(true);
       void pollQr(payload.data.qrcode);
     } catch {
