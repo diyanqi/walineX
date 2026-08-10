@@ -1,6 +1,7 @@
 import type { Comment, CommentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { renderCommentMarkdown } from "@/lib/waline/markdown";
+import { parseUserAgent } from "@/lib/waline/ua";
 
 interface RawComment {
   objectId?: unknown;
@@ -151,6 +152,8 @@ function normalizeComment(raw: RawComment): NormalizedComment | null {
   const rendered = String(raw.rendered ?? raw.html ?? "").trim();
   const deleted = toBool(raw.deleted ?? raw.is_deleted);
   const mailValue = raw.mail ?? raw.email;
+  const ua = raw.ua ? String(raw.ua).slice(0, 500) : null;
+  const { browser: uaBrowser, os: uaOs } = parseUserAgent(ua);
   return {
     importId,
     url: String(raw.url ?? raw.path ?? raw.page_key ?? "/").slice(0, 1000) || "/",
@@ -166,11 +169,11 @@ function normalizeComment(raw: RawComment): NormalizedComment | null {
     at: raw.at ? String(raw.at).slice(0, 100) : null,
     like: Math.max(0, toNumber(raw.like ?? raw.like_count) ?? 0),
     sticky: toBool(raw.sticky ?? raw.is_pinned),
-    ua: raw.ua ? String(raw.ua).slice(0, 500) : null,
+    ua,
     ip: raw.ip ? String(raw.ip).slice(0, 100) : null,
     addr: raw.addr ? String(raw.addr).slice(0, 200) : null,
-    browser: raw.browser ? String(raw.browser).slice(0, 200) : null,
-    os: raw.os ? String(raw.os).slice(0, 200) : null,
+    browser: raw.browser ? String(raw.browser).slice(0, 200) : uaBrowser || null,
+    os: raw.os ? String(raw.os).slice(0, 200) : uaOs || null,
     spamScore: toNumber(raw.spamScore),
     moderationReason: raw.moderationReason ? String(raw.moderationReason).slice(0, 500) : null,
     moderatedBy: raw.moderatedBy ? String(raw.moderatedBy).slice(0, 100) : null,

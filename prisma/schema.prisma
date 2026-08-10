@@ -187,6 +187,8 @@ model Instance {
   aiModel                   String?
   allowAnonymous            Boolean             @default(true)
   requireCap                Boolean             @default(false)
+  commentRateLimitMax       Int                 @default(6)
+  commentRateLimitWindowSec Int                 @default(60)
   monthlyCommentLimit       Int                 @default(1000)
   totalCommentLimit         Int                 @default(10000)
   createdAt                 DateTime            @default(now())

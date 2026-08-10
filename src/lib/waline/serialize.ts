@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { UAParser } from "ua-parser-js";
 import type { Comment } from "@prisma/client";
+import { parseUserAgent } from "@/lib/waline/ua";
 import type {
   WalineBaseComment,
   WalineChildComment,
@@ -15,16 +15,6 @@ export function md5(value: string): string {
 export function defaultAvatar(nick: string, mail?: string | null): string {
   const hash = md5(mail || `${nick}:${Date.now()}`);
   return `https://www.gravatar.com/avatar/${hash}?d=mp&s=80`;
-}
-
-function parseBrowser(ua?: string | null): { browser?: string; os?: string } {
-  if (!ua) return {};
-  const parsed = new UAParser(ua).getResult();
-  const browser = [parsed.browser.name, parsed.browser.version]
-    .filter(Boolean)
-    .join(" ");
-  const os = [parsed.os.name, parsed.os.version].filter(Boolean).join(" ");
-  return { browser, os };
 }
 
 export interface WalineSerializeOptions {
@@ -59,7 +49,7 @@ export function serializeComment(
   comment: Comment,
   opts: WalineSerializeOptions = {},
 ): WalineBaseComment {
-  const { browser, os } = parseBrowser(comment.ua);
+  const { browser, os } = parseUserAgent(comment.ua);
   const isOwner = Boolean(opts.isOwner);
   const showRaw = Boolean(opts.login || opts.isOwner);
   const identity = comment.userId

@@ -36,14 +36,14 @@ export class OpenAICompatibleClassifier implements AIClassifier {
               {
                 role: "system",
                 content:
-                  'You are a comment moderation classifier. Return only JSON like {"spam":false,"toxic":false,"score":0.1,"reason":"optional short reason"}. Score is 0-1 where higher means more likely spam or abuse.',
+                  'You are a comment moderation classifier. Judge spam and abuse signals from the username, website URL, email, IP and comment content. Return only JSON like {"spam":false,"toxic":false,"score":0.1,"reason":"optional short reason"}. Score is 0-1 where higher means more likely spam or abuse.',
               },
               {
                 role: "user",
                 content: [
-                  `nick: ${input.nick}`,
+                  `nickname: ${input.nick}`,
                   `email: ${input.mail || ""}`,
-                  `url: ${input.link || input.url}`,
+                  `website: ${input.link || input.url}`,
                   `ip: ${input.ip}`,
                   `comment: ${input.content}`,
                 ].join("\n"),

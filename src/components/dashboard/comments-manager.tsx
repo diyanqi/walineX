@@ -27,6 +27,11 @@ export interface DashboardCommentItem {
   objectId: number;
   nick: string;
   mail: string | null;
+  link: string | null;
+  ip: string | null;
+  addr: string | null;
+  browser: string | null;
+  os: string | null;
   comment: string;
   status: "approved" | "waiting" | "spam";
   sticky: boolean;
@@ -40,6 +45,7 @@ interface CommentsManagerProps {
   initialComments: DashboardCommentItem[];
   initialCount: number;
   initialTotalPages: number;
+  initialPage?: number;
 }
 
 export function CommentsManager({
@@ -47,9 +53,11 @@ export function CommentsManager({
   initialComments,
   initialCount,
   initialTotalPages,
+  initialPage = 1,
 }: CommentsManagerProps) {
   const [comments, setComments] = React.useState(initialComments);
-  const [page, setPage] = React.useState(1);
+  const [page, setPage] = React.useState(initialPage);
+  const [jumpPage, setJumpPage] = React.useState(String(initialPage));
   const [count, setCount] = React.useState(initialCount);
   const [totalPages, setTotalPages] = React.useState(Math.max(1, initialTotalPages));
   const [keyword, setKeyword] = React.useState("");
@@ -84,6 +92,7 @@ export function CommentsManager({
       setComments(payload.data || []);
       setCount(payload.count ?? 0);
       setPage(payload.page ?? requestedPage);
+      setJumpPage(String(payload.page ?? requestedPage));
       setTotalPages(Math.max(1, payload.totalPages ?? 1));
     } catch {
       setError("网络请求失败");
@@ -140,6 +149,12 @@ export function CommentsManager({
     } finally {
       setLoading(false);
     }
+  }
+
+  function jumpToPage() {
+    const target = Math.min(totalPages, Math.max(1, Number(jumpPage) || 1));
+    if (target !== page) void load(target);
+    else setJumpPage(String(page));
   }
 
   return (
@@ -237,6 +252,25 @@ export function CommentsManager({
                     <p className="mt-2 text-xs text-muted-foreground">
                       {comment.instance.name} · {comment.url} · {formatDate(new Date(comment.createdAt))}
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      {comment.browser || comment.os ? (
+                        <span>
+                          {[comment.browser, comment.os].filter(Boolean).join(" · ")}
+                        </span>
+                      ) : null}
+                      {comment.ip ? <span>IP {comment.ip}</span> : null}
+                      {comment.addr ? <span>{comment.addr}</span> : null}
+                      {comment.link ? (
+                        <a
+                          href={comment.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary underline underline-offset-2"
+                        >
+                          {comment.link}
+                        </a>
+                      ) : null}
+                    </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {comment.status !== "approved" ? (
@@ -300,6 +334,26 @@ export function CommentsManager({
           <span className="min-w-20 text-center text-sm text-muted-foreground">
             第 {page} / {totalPages} 页
           </span>
+          <div className="flex items-center gap-1">
+            <Input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={jumpPage}
+              onChange={(event) => setJumpPage(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && jumpToPage()}
+              className="h-8 w-16 text-center"
+              aria-label="跳转到页"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={loading}
+              onClick={jumpToPage}
+            >
+              跳转
+            </Button>
+          </div>
           <Button
             variant="outline"
             size="sm"

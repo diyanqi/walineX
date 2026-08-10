@@ -11,21 +11,32 @@ export const metadata: Metadata = {
   title: "评论",
 };
 
-export default async function CommentsPage() {
+export default async function CommentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const user = await getSessionUser();
   if (!user) return null;
+  const query = await searchParams;
+  const initialPage = Math.max(1, Number(query.page) || 1);
   const [instances, initial] = await Promise.all([
     prisma.instance.findMany({
       where: { userId: user.id, deletedAt: null },
       select: { id: true, slug: true, name: true },
       orderBy: { createdAt: "desc" },
     }),
-    listDashboardComments(user, { page: 1, pageSize: 50 }),
+    listDashboardComments(user, { page: initialPage, pageSize: 50 }),
   ]);
   const comments: DashboardCommentItem[] = initial.data.map((comment) => ({
     objectId: comment.objectId,
     nick: comment.nick,
     mail: comment.mail,
+    link: comment.link,
+    ip: comment.ip,
+    addr: comment.addr,
+    browser: comment.browser,
+    os: comment.os,
     comment: comment.comment,
     status: comment.status,
     sticky: comment.sticky,
@@ -43,6 +54,7 @@ export default async function CommentsPage() {
       initialComments={comments}
       initialCount={initial.count}
       initialTotalPages={initial.totalPages}
+      initialPage={initialPage}
     />
   );
 }

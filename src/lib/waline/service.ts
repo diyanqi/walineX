@@ -2,6 +2,7 @@ import type { Comment, CommentStatus, Instance, Prisma, User } from "@prisma/cli
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { renderCommentMarkdown } from "@/lib/waline/markdown";
+import { parseUserAgent } from "@/lib/waline/ua";
 import { commentLevel, identityFromUser } from "@/lib/waline/identity";
 import {
   serializeChild,
@@ -247,7 +248,11 @@ export async function createComment(
   meta: { ip: string; isOwner: boolean },
 ) {
   const { ip, isOwner } = meta;
-  const limit = await rateLimit(`comment:${instance.slug}:${ip}`, isOwner ? 60 : 6, 60);
+  const limit = await rateLimit(
+    `comment:${instance.slug}:${ip}`,
+    isOwner ? 60 : instance.commentRateLimitMax,
+    instance.commentRateLimitWindowSec,
+  );
   if (!limit.allowed) {
     return { error: { errno: 429, errmsg: "评论太快，请稍后再试。" } };
   }
@@ -340,8 +345,9 @@ export async function createComment(
       rendered: moderation.rendered ?? renderCommentMarkdown(content),
       ua,
       ipHash: ip ? createHash("sha256").update(`${instance.id}:${ip}`).digest("hex") : null,
-      ip: isOwner ? ip : undefined,
-      addr: isOwner ? "本地" : undefined,
+      ip,
+      addr: isOwner ? "本地" : null,
+      ...parseUserAgent(ua),
       status,
       pid: pid && Number.isInteger(pid) ? pid : null,
       rid: rid && Number.isInteger(rid) ? rid : null,

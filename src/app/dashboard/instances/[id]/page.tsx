@@ -54,6 +54,8 @@ export default async function InstanceSettingsPage({
     defaultCommentStatus: instance.defaultCommentStatus,
     allowAnonymous: instance.allowAnonymous,
     requireCap: instance.requireCap,
+    commentRateLimitMax: instance.commentRateLimitMax,
+    commentRateLimitWindowSec: instance.commentRateLimitWindowSec,
     aiModerationEnabled: instance.aiModerationEnabled,
     aiConfigured: Boolean(
       instance.aiApiKeyEncrypted || env("AI_MODERATION_API_KEY"),

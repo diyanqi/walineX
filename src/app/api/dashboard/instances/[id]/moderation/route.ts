@@ -42,6 +42,8 @@ export async function GET(
             ),
             allowAnonymous: instance.allowAnonymous,
             requireCap: instance.requireCap,
+            commentRateLimitMax: instance.commentRateLimitMax,
+            commentRateLimitWindowSec: instance.commentRateLimitWindowSec,
           },
           sensitiveWords,
           moderationRules,
@@ -90,6 +92,20 @@ export async function PUT(
       COMMENT_STATUSES.has(body.defaultCommentStatus)
     ) {
       data.defaultCommentStatus = body.defaultCommentStatus;
+    }
+    if (
+      typeof body.commentRateLimitMax === "number" &&
+      Number.isInteger(body.commentRateLimitMax) &&
+      body.commentRateLimitMax >= 1
+    ) {
+      data.commentRateLimitMax = Math.min(1000, body.commentRateLimitMax);
+    }
+    if (
+      typeof body.commentRateLimitWindowSec === "number" &&
+      Number.isInteger(body.commentRateLimitWindowSec) &&
+      body.commentRateLimitWindowSec >= 1
+    ) {
+      data.commentRateLimitWindowSec = Math.min(86400, body.commentRateLimitWindowSec);
     }
     if (Object.keys(data).length === 0) throw new ApiError("没有可更新的字段");
 

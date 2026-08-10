@@ -51,6 +51,8 @@ export interface InstanceSettingsData {
   defaultCommentStatus: "approved" | "waiting" | "spam";
   allowAnonymous: boolean;
   requireCap: boolean;
+  commentRateLimitMax: number;
+  commentRateLimitWindowSec: number;
   aiModerationEnabled: boolean;
   aiConfigured: boolean;
   aiModerationAllowed: boolean;
@@ -165,6 +167,10 @@ export function InstanceSettings({
     description: initial.description || "",
     targetOrigins: (initial.targetOrigins || []).join("\n"),
   });
+  const [rateLimitForm, setRateLimitForm] = React.useState({
+    max: initial.commentRateLimitMax,
+    windowSec: initial.commentRateLimitWindowSec,
+  });
   const [sensitiveWords, setSensitiveWords] = React.useState(initialWords);
   const [moderationRules, setModerationRules] = React.useState(initialRules);
   const [saving, setSaving] = React.useState(false);
@@ -254,6 +260,13 @@ export function InstanceSettings({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function saveRateLimit() {
+    const max = Math.min(1000, Math.max(1, Number(rateLimitForm.max) || 6));
+    const windowSec = Math.min(86400, Math.max(1, Number(rateLimitForm.windowSec) || 60));
+    setRateLimitForm({ max, windowSec });
+    await saveModeration({ commentRateLimitMax: max, commentRateLimitWindowSec: windowSec });
   }
 
   async function addWord() {
@@ -742,6 +755,56 @@ export function InstanceSettings({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-2 rounded-md border p-4">
+              <Label htmlFor="rate-limit-max">单 IP 评论频率限制</Label>
+              <p className="text-xs text-muted-foreground">
+                同一 IP 在时间窗口内最多发表的评论数。
+              </p>
+              <Input
+                id="rate-limit-max"
+                type="number"
+                min={1}
+                max={1000}
+                value={rateLimitForm.max}
+                onChange={(event) =>
+                  setRateLimitForm((current) => ({
+                    ...current,
+                    max: Number(event.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+            <div className="grid gap-2 rounded-md border p-4">
+              <Label htmlFor="rate-limit-window">时间窗口（秒）</Label>
+              <p className="text-xs text-muted-foreground">
+                频率限制的时间窗口，默认 60 秒。
+              </p>
+              <Input
+                id="rate-limit-window"
+                type="number"
+                min={1}
+                max={86400}
+                value={rateLimitForm.windowSec}
+                onChange={(event) =>
+                  setRateLimitForm((current) => ({
+                    ...current,
+                    windowSec: Number(event.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => void saveRateLimit()}
+              disabled={saving}
+            >
+              {saving ? <Loader2 className="animate-spin" /> : <Save />}
+              保存频率限制
+            </Button>
           </div>
               </CardContent>
             </Card>
