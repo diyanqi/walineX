@@ -103,12 +103,10 @@ function extractComments(payload: unknown): RawComment[] {
   const object = payload as Record<string, unknown>;
   if (Array.isArray(object.data)) return object.data as RawComment[];
   if (Array.isArray(object.comments)) return object.comments as RawComment[];
-  if (
-    object.data &&
-    typeof object.data === "object" &&
-    Array.isArray((object.data as Record<string, unknown>).comments)
-  ) {
-    return (object.data as Record<string, unknown>).comments as RawComment[];
+  if (object.data && typeof object.data === "object") {
+    const data = object.data as Record<string, unknown>;
+    if (Array.isArray(data.Comment)) return data.Comment as RawComment[];
+    if (Array.isArray(data.comments)) return data.comments as RawComment[];
   }
   return [];
 }
