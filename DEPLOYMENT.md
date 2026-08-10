@@ -1,6 +1,6 @@
 # 无尽书证部署指南
 
-无尽书证是一个多租户 Waline 兼容评论服务。生产环境建议使用 Docker Compose 部署在自托管 VPS 上，由反向代理统一终止 HTTPS。
+无尽书证是一个多租户 Waline 兼容评论服务。生产环境建议使用 Docker Compose 部署在自托管 VPS 上，由反向代理统一终止 HTTPS。PostgreSQL 使用服务器上已有的外部数据库，Compose 不再创建数据库容器。
 
 ## 1. 域名规划
 
@@ -35,12 +35,12 @@ cp .env.example .env
 openssl rand -hex 32
 ```
 
-把输出分别填入 `APP_ENCRYPTION_KEY`、`SESSION_SECRET`、`CAP_SECRET`，并为 `POSTGRES_PASSWORD` 设置独立强密码。
+把输出分别填入 `APP_ENCRYPTION_KEY`、`SESSION_SECRET`、`CAP_SECRET`，并为外部数据库的 `DATABASE_URL` 使用独立强密码。
 
 至少需要设置：
 
 ```dotenv
-POSTGRES_PASSWORD=strong-db-password
+DATABASE_URL=postgresql://waline:strong-db-password@db.example.com:5432/walinex?schema=public
 APP_ENCRYPTION_KEY=<32字节随机密钥>
 SESSION_SECRET=<随机会话密钥>
 CAP_SECRET=<32字节随机密钥>
@@ -59,6 +59,7 @@ EPAY_GATEWAY=...
 - `ADMIN_EMAIL` / `ADMIN_NAME`：平台管理员邮箱（支持英文逗号分隔多个）；用户用该邮箱完成 OAuth 登录后会自动成为管理员，seed 也会创建对应账号。
 - `AI_MODERATION_BASE_URL` / `AI_MODERATION_MODEL` / `AI_MODERATION_API_KEY`：AI 审核默认 OpenAI 兼容端点，API Key 可用英文逗号分隔多个实现轮询。
 - `APP_PORT`：宿主机映射端口，默认 `3000`。
+- `REDIS_URL` / `REDIS_ENABLED`：可选的外部 Redis；不配置时自动关闭并退回内存限流。
 
 ## 3. OAuth 回调地址
 
@@ -71,39 +72,47 @@ GitHub 账号注册时间不足一个月的用户会被拒绝登录。
 
 如果 GitHub 登录完成后仍跳转到 `http://localhost:3000/dashboard`，通常是容器里的
 `NEXT_PUBLIC_APP_URL` 还是旧值，或旧镜像没有重建。确认 `.env` 中为
-`https://waline.infvar.com`，然后执行 `docker compose up -d --build --force-recreate`，
+`https://waline.infvar.com`，然后执行 `docker compose pull && docker compose up -d --force-recreate`，
 并清理浏览器中 `waline.infvar.com` 的 Cookie 后重试。
 
 ## 4. 启动
 
-首次启动会自动执行数据库迁移和 seed：
+镜像由 GitHub Actions 自动构建并推送到 GHCR。先拉取镜像并准备好外部数据库：
 
 ```bash
-docker compose up -d --build
+docker pull ghcr.io/diyanqi/walinex:latest
+cp .env.example .env
+# 编辑 .env，把 DATABASE_URL 指向服务器上已有的 PostgreSQL
 ```
 
-查看状态：
+在外部数据库里提前创建数据库和账号，然后执行迁移和 seed：
+
+```bash
+docker compose run --rm migrate
+```
+
+启动应用：
+
+```bash
+docker compose up -d
+```
+
+查看状态和日志：
 
 ```bash
 docker compose ps
 docker compose logs -f app
 ```
 
-重新构建并滚动更新：
+更新部署时重新拉取镜像并重启：
 
 ```bash
-docker compose up -d --build --force-recreate
+docker compose pull
+docker compose up -d
 ```
 
-数据库迁移也可以手动执行：
-
-```bash
-docker compose run --rm migrate
-```
-
-如果 `migrate` 容器报 `The datasource.url property is required`，说明旧镜像里没有
-`prisma.config.ts`。请拉取最新代码后执行 `docker compose up -d --build` 重建镜像，
-同时确认 `migrate` 服务环境中的 `DATABASE_URL` 已指向 `db` 容器。
+如果 `migrate` 容器报 `The datasource.url property is required`，确认 `.env` 中
+`DATABASE_URL` 已正确设置，且外部数据库允许当前服务器 IP 访问。
 
 ## 5. 反向代理与 HTTPS
 
@@ -168,10 +177,10 @@ https://blog.example.org
 
 ## 8. 备份
 
-PostgreSQL 数据保存在 `postgres_data` volume，建议每日执行：
+PostgreSQL 由服务器上的外部数据库提供服务，建议在数据库主机上每日执行：
 
 ```bash
-docker compose exec db pg_dump -U waline walinex | gzip > walinex-$(date +%F).sql.gz
+pg_dump -U waline -h db.example.com walinex | gzip > walinex-$(date +%F).sql.gz
 ```
 
 `CAP_SECRET`、`SESSION_SECRET` 和 `APP_ENCRYPTION_KEY` 一旦丢失会导致现有会话和验证失效，请妥善保存。

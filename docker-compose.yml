@@ -1,45 +1,13 @@
 services:
-  db:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-waline}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-waline}
-      POSTGRES_DB: ${POSTGRES_DB:-walinex}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-waline} -d ${POSTGRES_DB:-walinex}"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-
   migrate:
-    build:
-      context: .
-      args:
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-        NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-waline.infvar.com}
-        NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-instance.waline.infvar.com}
-    command: sh -c "pnpm db:deploy && pnpm db:seed"
+    image: ${IMAGE:-ghcr.io/diyanqi/walinex:latest}
+    command: sh -c "node scripts/wait-for-db.mjs && pnpm db:deploy && pnpm db:seed"
     environment: &app_env
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-waline}:${POSTGRES_PASSWORD:-waline}@db:5432/${POSTGRES_DB:-walinex}?schema=public
-      REDIS_URL: redis://redis:6379
-      REDIS_ENABLED: "true"
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      REDIS_URL: ${REDIS_URL:-redis://localhost:6379}
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://waline.infvar.com}
       NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-waline.infvar.com}
       NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-instance.waline.infvar.com}
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY}
@@ -55,20 +23,10 @@ services:
       AI_MODERATION_API_KEY: ${AI_MODERATION_API_KEY:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_NAME: ${ADMIN_NAME:-}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     restart: "no"
 
   app:
-    build:
-      context: .
-      args:
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-        NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-waline.infvar.com}
-        NEXT_PUBLIC_INSTANCE_DOMAIN: ${NEXT_PUBLIC_INSTANCE_DOMAIN:-instance.waline.infvar.com}
+    image: ${IMAGE:-ghcr.io/diyanqi/walinex:latest}
     command: pnpm start
     ports:
       - "${APP_PORT:-3000}:3000"
@@ -76,8 +34,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      redis:
-        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test:
@@ -90,7 +46,3 @@ services:
       interval: 15s
       timeout: 5s
       retries: 6
-
-volumes:
-  postgres_data:
-  redis_data:

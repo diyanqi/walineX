@@ -61,4 +61,4 @@ pnpm db:seed
 
 ## 生产部署
 
-见 [DEPLOYMENT.md](./DEPLOYMENT.md)。支持 Docker Compose 部署 PostgreSQL、Redis 和应用，首次启动自动执行数据库迁移。
+见 [DEPLOYMENT.md](./DEPLOYMENT.md)。GitHub Actions 会自动构建并推送 `ghcr.io/diyanqi/walinex`，服务器用外部 PostgreSQL 配合 Docker Compose 部署，首次启动自动执行数据库迁移。
