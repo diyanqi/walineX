@@ -29,7 +29,7 @@ services:
     image: ${IMAGE:-ghcr.io/diyanqi/walinex:latest}
     command: pnpm start
     ports:
-      - "${APP_PORT:-3000}:3000"
+      - "${APP_PORT:-3033}:3000"
     environment: *app_env
     depends_on:
       migrate:
@@ -46,3 +46,8 @@ services:
       interval: 15s
       timeout: 5s
       retries: 6
+
+networks:
+  default:
+    external: true
+    name: 1panel-network

@@ -17,7 +17,7 @@
 如果使用 Cloudflare，请按下面任一种方式配置，不要添加“Host Header Override / Origin Rule”：
 
 - 用 A 记录：为 `waline.infvar.com` 和 `instance.waline.infvar.com` 分别创建指向 VPS 的 A 记录，不要把一个域名 CNAME 到另一个域名。
-- 用 Cloudflare Tunnel：在 Tunnel 里为两个域名分别创建 Public Hostname，服务地址都填 `http://localhost:3000`，HTTP Host Header 留空（不自定义）。
+- 用 Cloudflare Tunnel：在 Tunnel 里为两个域名分别创建 Public Hostname，服务地址都填 `http://localhost:3033`，HTTP Host Header 留空（不自定义）。
 
 如果已经出现“根域名 `/login` 404，实例域名 `/login` 正常”的现象，说明 Cloudflare 发给容器的 Host 已经被改成 `instance.waline.infvar.com`。请先检查并删除 Host Header 覆盖规则，再重新部署。
 
@@ -58,7 +58,7 @@ EPAY_GATEWAY=...
 
 - `ADMIN_EMAIL` / `ADMIN_NAME`：平台管理员邮箱（支持英文逗号分隔多个）；用户用该邮箱完成 OAuth 登录后会自动成为管理员，seed 也会创建对应账号。
 - `AI_MODERATION_BASE_URL` / `AI_MODERATION_MODEL` / `AI_MODERATION_API_KEY`：AI 审核默认 OpenAI 兼容端点，API Key 可用英文逗号分隔多个实现轮询。
-- `APP_PORT`：宿主机映射端口，默认 `3000`。
+- `APP_PORT`：宿主机映射端口，默认 `3033`。
 - `REDIS_URL` / `REDIS_ENABLED`：可选的外部 Redis；不配置时自动关闭并退回内存限流。
 
 ## 3. OAuth 回调地址
@@ -70,7 +70,7 @@ GitHub OAuth App 需要配置：
 本服务通过 Cookie 建立登录态，实例登录弹窗会回到官网域完成 OAuth 后生成 Waline JWT。
 GitHub 账号注册时间不足一个月的用户会被拒绝登录。
 
-如果 GitHub 登录完成后仍跳转到 `http://localhost:3000/dashboard`，通常是容器里的
+如果 GitHub 登录完成后仍跳转到 `http://localhost:3033/dashboard`，通常是容器里的
 `NEXT_PUBLIC_APP_URL` 还是旧值，或旧镜像没有重建。确认 `.env` 中为
 `https://waline.infvar.com`，然后执行 `docker compose pull && docker compose up -d --force-recreate`，
 并清理浏览器中 `waline.infvar.com` 的 Cookie 后重试。
@@ -120,23 +120,18 @@ docker compose up -d
 说明 `DATABASE_URL` 里写的是 1Panel PostgreSQL 容器的名字，但 walinex 容器和它不在同一个
 Docker 网络，容器内无法解析这个名字。
 
-推荐把 walinex 的 Compose 挂到 PostgreSQL 所在的网络。先在服务器上查出该网络：
+仓库里的 `docker-compose.yml` 已经默认把整个 Compose 挂到 `1panel-network`。部署前先在
+服务器上确认 PostgreSQL 容器确实在这个网络：
 
 ```bash
 docker inspect 1Panel-postgresql-8Rqm --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{println}}{{end}}'
 ```
 
-假设输出是 `1panel-network`，在 `docker-compose.yml` 末尾追加：
+如果输出不是 `1panel-network`，把 `docker-compose.yml` 末尾 `networks.default.name`
+改成实际网络名。保持 `DATABASE_URL` 中使用 PostgreSQL 容器名（例如
+`1Panel-postgresql-8Rqm`）即可。
 
-```yaml
-networks:
-  default:
-    external: true
-    name: 1panel-network
-```
-
-然后重新执行 `docker compose up -d`，`DATABASE_URL` 中继续使用 PostgreSQL 容器名
-（例如 `1Panel-postgresql-8Rqm`）即可。
+改完网络后重新执行 `docker compose up -d`。
 
 如果不想改网络，也可以在 1Panel 中给 PostgreSQL 映射一个宿主端口，例如 `5432`，然后：
 
@@ -175,14 +170,14 @@ docker compose run --rm migrate node -e 'const {Client}=require("pg");const c=ne
 
 ```caddy
 waline.infvar.com {
-    reverse_proxy 127.0.0.1:3000 {
+    reverse_proxy 127.0.0.1:3033 {
         header_up Host {host}
         header_up X-Forwarded-Host {host}
     }
 }
 
 instance.waline.infvar.com {
-    reverse_proxy 127.0.0.1:3000 {
+    reverse_proxy 127.0.0.1:3033 {
         header_up Host {host}
         header_up X-Forwarded-Host {host}
     }
@@ -199,7 +194,7 @@ server {
     server_name waline.infvar.com instance.waline.infvar.com;
 
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3033;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;

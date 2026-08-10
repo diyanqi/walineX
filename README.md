@@ -46,9 +46,9 @@ pnpm dev
 
 访问：
 
-- 官网：http://localhost:3000
-- 控制台：http://localhost:3000/dashboard
-- 实例子路径：http://localhost:3000/tenant/{slug}
+- 官网：http://localhost:3033
+- 控制台：http://localhost:3033/dashboard
+- 实例子路径：http://localhost:3033/tenant/{slug}
 
 ## 常用命令
 
