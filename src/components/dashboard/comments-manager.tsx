@@ -37,6 +37,8 @@ export interface DashboardCommentItem {
   sticky: boolean;
   url: string;
   createdAt: string;
+  spamScore: number | null;
+  moderationReason: string | null;
   instance: { id: string; slug: string; name: string };
 }
 
@@ -260,6 +262,12 @@ export function CommentsManager({
                       ) : null}
                       {comment.ip ? <span>IP {comment.ip}</span> : null}
                       {comment.addr ? <span>{comment.addr}</span> : null}
+                      {comment.spamScore !== null ? (
+                        <span>AI 分 {comment.spamScore.toFixed(2)}</span>
+                      ) : null}
+                      {comment.moderationReason ? (
+                        <span>{comment.moderationReason}</span>
+                      ) : null}
                       {comment.link ? (
                         <a
                           href={comment.link}

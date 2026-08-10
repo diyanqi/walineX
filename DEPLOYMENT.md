@@ -242,4 +242,5 @@ pg_dump -U waline -h db.example.com walinex | gzip > walinex-$(date +%F).sql.gz
 3. 使用 GitHub 登录并创建实例。
 4. 用任意 Waline 客户端指向 `https://instance.waline.infvar.com/{实例标识}/api` 发评论，也可以在实例编辑页导入/导出 Waline JSON 数据。
 5. 在控制台审核评论、配置敏感词和通知。
-6. 在实例编辑页绑定微信并发送一条评论，确认通知到达。
+6. 配置 `AI_MODERATION_API_KEY` 后，在实例编辑页打开“AI 垃圾审核”；发一条测试评论，评论管理中出现“AI 分”即表示 AI 已参与审核。
+7. 在实例编辑页绑定微信并发送一条评论，确认通知到达。

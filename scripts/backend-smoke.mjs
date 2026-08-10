@@ -171,7 +171,8 @@ try {
      SET "notifyModeration" = true, "wechatNotificationEnabled" = true,
          "wechatBotTokenEncrypted" = 'smoke-token', "wechatBaseUrl" = 'https://example.com',
          "wechatUserId" = 'smoke@im.wechat',
-         "requireCap" = true, "moderationEnabled" = false
+         "requireCap" = true, "moderationEnabled" = false,
+         "defaultCommentStatus" = 'approved'
      WHERE id = $2`,
     [instance.id],
   );

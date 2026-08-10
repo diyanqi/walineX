@@ -239,6 +239,9 @@ export function InstanceSettings({
   }
 
   async function saveModeration(patch: Record<string, unknown>) {
+    if (patch.moderationEnabled === false && patch.defaultCommentStatus === undefined) {
+      patch = { ...patch, defaultCommentStatus: "approved" };
+    }
     setSaving(true);
     setMessage("");
     setError("");
@@ -680,7 +683,7 @@ export function InstanceSettings({
             <div className="flex items-center justify-between rounded-md border px-4 py-3">
               <div>
                 <p className="text-sm font-medium">启用审核</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">关闭后评论直接按默认状态发布</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">关闭后评论直接发布</p>
               </div>
               <Switch
                 checked={data.moderationEnabled}

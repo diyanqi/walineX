@@ -17,6 +17,10 @@ async function getRedis() {
       lazyConnect: true,
       maxRetriesPerRequest: 1,
       enableOfflineQueue: false,
+      protocol: 2,
+    });
+    redis.on("error", (error) => {
+      console.warn("[redis] connection error:", error instanceof Error ? error.message : error);
     });
     await redis.connect();
     return redis;

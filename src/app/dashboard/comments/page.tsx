@@ -42,6 +42,8 @@ export default async function CommentsPage({
     sticky: comment.sticky,
     url: comment.url,
     createdAt: comment.createdAt.toISOString(),
+    spamScore: comment.spamScore,
+    moderationReason: comment.moderationReason,
     instance: {
       id: comment.instance.id,
       slug: comment.instance.slug,

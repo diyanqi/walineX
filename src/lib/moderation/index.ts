@@ -41,18 +41,17 @@ export async function moderateComment(
     owner && planLimits(owner.plan).aiModeration
       ? classifierFromInstance(instance)
       : null;
-  const results = await Promise.all([
+  const [aiResult] = await Promise.all([
     ai ? ai.classify(input) : Promise.resolve(null),
   ]);
 
   let score = 0;
   let reason: string | undefined;
-  for (const result of results) {
-    if (!result) continue;
-    score = Math.max(score, result.score);
-    if (result.spam) {
+  if (aiResult) {
+    score = aiResult.score;
+    if (aiResult.spam || aiResult.toxic) {
       signals.spam = true;
-      reason = result.reason || reason;
+      reason = aiResult.reason || reason;
     }
   }
 
@@ -61,6 +60,6 @@ export async function moderateComment(
     signals.review = false;
     signals.reason = reason || "系统判定为垃圾评论";
   }
-  signals.score = score;
+  if (aiResult) signals.score = score;
   return signals;
 }

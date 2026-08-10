@@ -25,8 +25,8 @@ export function epaySign(params: Record<string, string>, key: string): string {
   const entries = Object.entries(params)
     .filter(([name, value]) => value !== "" && name !== "sign" && name !== "sign_type")
     .sort(([a], [b]) => a.localeCompare(b));
-  const raw = new URLSearchParams(entries).toString();
-  return createHash("md5").update(`${raw}${key}`).digest("hex").toUpperCase();
+  const raw = entries.map(([name, value]) => `${name}=${value}`).join("&");
+  return createHash("md5").update(`${raw}${key}`).digest("hex");
 }
 
 export function epayOrderUrl(options: {
@@ -57,5 +57,5 @@ export function epayOrderUrl(options: {
 export function verifyEpayNotify(params: Record<string, string>): boolean {
   const config = epayConfig();
   const sign = params.sign || "";
-  return sign !== "" && sign === epaySign(params, config.key);
+  return sign !== "" && sign.toLowerCase() === epaySign(params, config.key);
 }

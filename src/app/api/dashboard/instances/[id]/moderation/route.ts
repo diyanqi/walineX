@@ -83,6 +83,12 @@ export async function PUT(
       if (!owner || owner.plan === "free") {
         throw new ApiError("当前套餐不包含 AI 审核，请升级后重试", 403);
       }
+      if (!instance.aiApiKeyEncrypted && !env("AI_MODERATION_API_KEY")) {
+        throw new ApiError("平台尚未配置 AI 审核，请联系管理员", 403);
+      }
+    }
+    if (data.moderationEnabled === false && body.defaultCommentStatus === undefined) {
+      data.defaultCommentStatus = "approved";
     }
     if (typeof body.sensitiveWordMode === "string" && ACTIONS.has(body.sensitiveWordMode)) {
       data.sensitiveWordMode = body.sensitiveWordMode;

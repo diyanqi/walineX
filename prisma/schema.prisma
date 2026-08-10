@@ -169,7 +169,7 @@ model Instance {
   status                    InstanceStatus      @default(active)
   moderationEnabled         Boolean             @default(true)
   sensitiveWordMode         SensitiveWordAction @default(review)
-  defaultCommentStatus      CommentStatus       @default(waiting)
+  defaultCommentStatus      CommentStatus       @default(approved)
   notifyNewComment          Boolean             @default(false)
   notifyReply               Boolean             @default(false)
   notifyModeration          Boolean             @default(false)
