@@ -1,12 +1,41 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { instanceDomain } from "@/lib/env";
+import { instanceDomain, rootDomain } from "@/lib/env";
+
+function normalizeHostname(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value.split(",")[0].trim().split(":")[0].toLowerCase();
+}
+
+function isInternalHostname(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "::1" ||
+    hostname === "0.0.0.0" ||
+    hostname.startsWith("127.") ||
+    hostname.startsWith("10.") ||
+    hostname.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+  );
+}
+
+function isKnownHostname(hostname: string): boolean {
+  return hostname === rootDomain || hostname === instanceDomain;
+}
 
 function requestHostname(request: NextRequest): string {
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const hostHeader = request.headers.get("host");
-  const raw = forwardedHost || hostHeader || request.nextUrl.hostname;
-  return raw.split(",")[0].trim().split(":")[0].toLowerCase();
+  const host = normalizeHostname(request.headers.get("host"));
+  const forwarded = normalizeHostname(request.headers.get("x-forwarded-host"));
+
+  // A proxy may override Host while keeping the original domain in
+  // X-Forwarded-Host; prefer that only when both values are known domains.
+  if (host && forwarded && host !== forwarded && isKnownHostname(host) && isKnownHostname(forwarded)) {
+    return forwarded;
+  }
+
+  // Behind a normal reverse proxy the Host header is the public domain.
+  if (host && !isInternalHostname(host)) return host;
+  return forwarded || host || normalizeHostname(request.nextUrl.hostname) || "";
 }
 
 function shouldSkip(pathname: string): boolean {

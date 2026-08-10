@@ -1,5 +1,5 @@
 import { decryptSecret } from "@/lib/crypto";
-import { env } from "@/lib/env";
+import { env, instanceUrl } from "@/lib/env";
 import type { AIClassifierResult, ModerationInput } from "@/lib/moderation/types";
 
 export interface AkismetConfig {
@@ -44,14 +44,14 @@ export function resolveAkismetKey(
 }
 
 export function akismetConfigFromInstance(instance: {
+  slug: string;
   akismetEnabled: boolean;
   akismetKeyEncrypted: string | null;
-  url?: string;
 }): AkismetConfig | null {
   if (!instance.akismetEnabled) return null;
   const apiKey = resolveAkismetKey(instance.akismetKeyEncrypted);
   if (!apiKey) return null;
-  return { apiKey, blog: instance.url || "https://waline.infvar.com" };
+  return { apiKey, blog: instanceUrl(instance.slug) };
 }
 
 export async function akismetResult(

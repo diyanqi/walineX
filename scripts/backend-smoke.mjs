@@ -344,11 +344,11 @@ try {
   }
 
   const listed = await request(`/tenant/${slug}/api/comment?path=/smoke&pageSize=50`);
-  const root = listed.data.find((item) => item.objectId === normal.data.objectId);
+  const root = listed.data.data.find((item) => item.objectId === normal.data.objectId);
   if (!root || !Array.isArray(root.children) || root.children.length !== 1) {
     throw new Error("public list did not include the approved root with its reply child");
   }
-  console.log(`public list: roots=${listed.data.length} children=${root.children.length}`);
+  console.log(`public list: roots=${listed.data.data.length} children=${root.children.length}`);
 
   const countBody = await request(`/tenant/${slug}/api/comment?type=count&url=/smoke`);
   if (countBody.data[0] !== 2) {
@@ -381,6 +381,64 @@ try {
     throw new Error("dashboard comment list did not include the review comment");
   }
   console.log(`dashboard list: ${dashboardList.count} comments`);
+
+  const whitelistPatch = await fetch(`${base}/api/dashboard/instances/${instance.id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ targetOrigins: ["https://allowed.example.com"] }),
+  });
+  const whitelistBody = await whitelistPatch.json();
+  if (!whitelistPatch.ok || whitelistBody.errno !== 0) {
+    throw new Error(`target origin whitelist patch failed: ${JSON.stringify(whitelistBody)}`);
+  }
+
+  const allowedOrigin = await fetch(`${base}/tenant/${slug}/api/comment?path=/smoke`, {
+    headers: { origin: "https://allowed.example.com" },
+  });
+  if (allowedOrigin.status !== 200) {
+    throw new Error(`allowed origin got ${allowedOrigin.status}`);
+  }
+
+  const deniedOrigin = await fetch(`${base}/tenant/${slug}/api/comment?path=/smoke`, {
+    headers: { origin: "https://evil.example.com" },
+  });
+  const deniedBody = await deniedOrigin.json();
+  if (deniedOrigin.status !== 403 || deniedBody.errno !== 403) {
+    throw new Error(`denied origin got ${deniedOrigin.status} ${JSON.stringify(deniedBody)}`);
+  }
+
+  const directRequest = await fetch(`${base}/tenant/${slug}/api/comment?path=/smoke`);
+  const directBody = await directRequest.json();
+  if (directRequest.status !== 403 || directBody.errno !== 403) {
+    throw new Error(`direct request got ${directRequest.status} ${JSON.stringify(directBody)}`);
+  }
+
+  const allowedPreflight = await fetch(`${base}/tenant/${slug}/api/comment`, {
+    method: "OPTIONS",
+    headers: {
+      origin: "https://allowed.example.com",
+      "access-control-request-method": "POST",
+    },
+  });
+  if (
+    allowedPreflight.status !== 204 ||
+    allowedPreflight.headers.get("access-control-allow-origin") !==
+      "https://allowed.example.com"
+  ) {
+    throw new Error("allowed preflight did not include the whitelisted origin");
+  }
+
+  const deniedPreflight = await fetch(`${base}/tenant/${slug}/api/comment`, {
+    method: "OPTIONS",
+    headers: {
+      origin: "https://evil.example.com",
+      "access-control-request-method": "POST",
+    },
+  });
+  if (deniedPreflight.headers.has("access-control-allow-origin")) {
+    throw new Error("denied preflight incorrectly allowed a non-whitelisted origin");
+  }
+  console.log("CORS whitelist: allowed/denied/direct/preflight checks passed");
 
   const commentRow = await db.query(
     `SELECT "consumedAt" FROM "CapRedemption"

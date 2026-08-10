@@ -23,6 +23,12 @@
 - Redis + BullMQ + ioredis
 - jose JWT、capjs-core、nodemailer
 
+## 生产地址
+
+- 官网 / 登录 / 控制台：`https://waline.infvar.com`
+- 控制台：`https://waline.infvar.com/dashboard`
+- 实例 API：`https://instance.waline.infvar.com/{实例标识}/api`
+
 ## 本地开发
 
 ```bash

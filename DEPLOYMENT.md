@@ -12,7 +12,14 @@
 
 请把这两个域名都指向 VPS 的 A 记录。不需要泛域名，也不需要为每个实例单独配置域名。应用内置的 `src/proxy.ts` 根据请求的 Host（或 `X-Forwarded-Host`）把域名分流：`instance.waline.infvar.com/{instance}/...` 会重写到 `/tenant/{instance}/...`，因此一个 Next.js 容器就能同时服务官网、控制台和全部评论实例。
 
-反向代理必须保留原始 Host 头；如果 Host 被改写为容器内部地址，实例域名路由会失效。
+反向代理必须保留原始 Host 头，并让 `X-Forwarded-Host` 等于原始访问域名；如果这两个头被改写或固定成同一个域名，实例域名路由会串线。典型症状是 `waline.infvar.com/login` 被当成实例标识重写为不存在的 `/tenant/login` 而返回 404，实例域名下的路径也会跟着错乱。
+
+如果使用 Cloudflare，请按下面任一种方式配置，不要添加“Host Header Override / Origin Rule”：
+
+- 用 A 记录：为 `waline.infvar.com` 和 `instance.waline.infvar.com` 分别创建指向 VPS 的 A 记录，不要把一个域名 CNAME 到另一个域名。
+- 用 Cloudflare Tunnel：在 Tunnel 里为两个域名分别创建 Public Hostname，服务地址都填 `http://localhost:3000`，HTTP Host Header 留空（不自定义）。
+
+如果已经出现“根域名 `/login` 404，实例域名 `/login` 正常”的现象，说明 Cloudflare 发给容器的 Host 已经被改成 `instance.waline.infvar.com`。请先检查并删除 Host Header 覆盖规则，再重新部署。
 
 ## 2. 环境变量
 
@@ -110,15 +117,21 @@ docker compose run --rm migrate
 
 ```caddy
 waline.infvar.com {
-    reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:3000 {
+        header_up Host {host}
+        header_up X-Forwarded-Host {host}
+    }
 }
 
 instance.waline.infvar.com {
-    reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:3000 {
+        header_up Host {host}
+        header_up X-Forwarded-Host {host}
+    }
 }
 ```
 
-Caddy 默认会保留 Host，并自动附加 `X-Forwarded-For`、`X-Forwarded-Proto`、`X-Forwarded-Host`，上面的配置即可。
+Caddy 默认就会保留 Host 并附加正确的转发头，上面的写法只是把关键行为写明确。不要把 `X-Forwarded-Host` 固定成某个域名，也不要让 Cloudflare Origin Rule / Tunnel 把两个域名的 Host 统一改写。
 
 以 Nginx 为例，需要显式转发 Host 和协议头：
 
@@ -177,7 +190,8 @@ docker compose exec db pg_dump -U waline walinex | gzip > walinex-$(date +%F).sq
 ## 9. 上线检查
 
 1. 访问 `/api/health` 确认服务健康。
-2. 使用 GitHub / Google 登录并创建实例。
-3. 用任意 Waline 客户端指向 `https://instance.waline.infvar.com/{实例标识}` 发评论。
-4. 在控制台审核评论、配置敏感词和通知。
-5. 确认邮件 worker 日志中没有发送失败。
+2. 访问 `https://waline.infvar.com/login`，确认返回登录页而不是 404。
+3. 使用 GitHub / Google 登录并创建实例。
+4. 用任意 Waline 客户端指向 `https://instance.waline.infvar.com/{实例标识}` 发评论。
+5. 在控制台审核评论、配置敏感词和通知。
+6. 确认邮件 worker 日志中没有发送失败。
