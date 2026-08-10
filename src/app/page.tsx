@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Globe2,
   MessageSquareText,
+  Quote,
   ShieldCheck,
   Zap,
 } from "lucide-react";
@@ -84,18 +85,18 @@ export default function Home() {
     <>
       <SiteHeader />
       <main>
-        <section className="relative overflow-hidden border-b bg-[#0c1d24] text-white">
+        <section className="relative overflow-hidden border-b bg-gradient-to-b from-muted/70 to-background">
           <div
             className="pointer-events-none absolute inset-0 opacity-40"
             style={{
               backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
+                "linear-gradient(hsl(var(--border) / 0.55) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border) / 0.55) 1px, transparent 1px)",
               backgroundSize: "48px 48px",
             }}
           />
           <div className="relative mx-auto max-w-7xl px-4 pb-0 pt-16 sm:px-6 sm:pt-20 lg:px-8">
             <div className="max-w-3xl">
-              <Badge className="border-white/15 bg-white/10 text-white">
+              <Badge variant="secondary">
                 <Globe2 className="h-3 w-3" />
                 Waline 兼容 · 即刻替换服务端
               </Badge>
@@ -104,21 +105,21 @@ export default function Home() {
                 <br />
                 拥有可托管的评论系统
               </h1>
-              <p className="mt-5 max-w-2xl text-base leading-7 text-white/65 sm:text-lg">
+              <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
                 无尽书证是 Waline 兼容的托管评论服务。创建实例、替换服务端地址，即可获得多租户管理、
                 PoW 人机验证、智能审核与邮件通知。
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/register"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-teal-400 px-5 text-sm font-semibold text-[#0c1d24] shadow-lg shadow-teal-400/20 transition-colors hover:bg-teal-300"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-colors hover:bg-primary/90"
                 >
                   免费创建实例
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   href="/docs"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/20 bg-white/5 px-5 text-sm font-medium text-white transition-colors hover:bg-white/10"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md border bg-background px-5 text-sm font-medium transition-colors hover:bg-accent"
                 >
                   阅读接入文档
                 </Link>
@@ -163,6 +164,58 @@ export default function Home() {
           </div>
         </section>
 
+        <section id="name" className="border-b">
+          <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:px-8">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-primary">名字的由来</p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+                「书证」是中国古代早已有之的评论传统
+              </h2>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+                「书证」本指以书为证，是古人读书、治学时的重要方法。从汉代章句到唐代注疏，
+                再到清代考据，学者们把考订、辩难与心得写在书页之侧，以文字印证文字，以证据校正
+                正文，彼此切磋，层层推进。
+              </p>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+                今天的评论，正是这一传统在网络时代的延续：读者在文章旁边写下见解、提问与补充，
+                为正文提供注脚，也为彼此提供印证。无尽书证把这份「以书为证」的严肃与自由，
+                变成一套任何人都能接入的现代评论基础设施。
+              </p>
+              <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                {[
+                  { term: "书", note: "文章与记录" },
+                  { term: "证", note: "证据与佐证" },
+                  { term: "评", note: "边读边评的学术传统" },
+                ].map((item) => (
+                  <div key={item.term} className="rounded-md border bg-background px-4 py-3">
+                    <p className="text-lg font-semibold text-primary">{item.term}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{item.note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="relative">
+              <div className="rounded-lg border bg-card p-6 shadow-sm sm:p-8">
+                <Quote className="h-6 w-6 text-primary/60" />
+                <div className="mt-5 space-y-4">
+                  <p className="border-l-2 border-primary/50 pl-4 text-base leading-7 text-muted-foreground">
+                    案：此篇所引「书证」二字，最早见于汉代章句之学。学者于正文之侧随文取证，
+                    后人循其批注，便可复见当时议论与考订之迹。
+                  </p>
+                  <p className="border-l-2 border-primary/50 pl-4 text-base leading-7 text-muted-foreground">
+                    无尽书证沿用此意：每一段评论，都是写在文章旁边的批注，以文字为证，
+                    让讨论有出处、有回应、可流传。
+                  </p>
+                </div>
+                <div className="mt-6 flex items-center justify-between border-t pt-4">
+                  <span className="text-sm font-medium">书证 · 仿古人批注</span>
+                  <span className="text-xs text-muted-foreground">评注体例</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="border-b bg-muted/30">
           <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
             <div className="grid items-center gap-10 lg:grid-cols-2">
@@ -178,8 +231,8 @@ export default function Home() {
                       description: "使用 GitHub 或 Google 登录，免费套餐即可创建第一个实例。",
                     },
                     {
-                      title: "复制 API 地址",
-                      description: "在控制台复制 https://instance.waline.infvar.com/{实例标识}/api 作为服务端地址。",
+                      title: "复制实例地址",
+                      description: "在控制台复制 https://instance.waline.infvar.com/{实例标识} 作为服务端地址。",
                     },
                     {
                       title: "更新 Waline 配置",
@@ -212,7 +265,7 @@ export default function Home() {
                   <MessageSquareText className="h-5 w-5 text-primary" />
                   <p className="font-semibold">接入示例</p>
                 </div>
-                <pre className="mt-4 overflow-x-auto rounded-md bg-[#0c1d24] p-5 text-xs leading-6 text-white/80">
+                <pre className="mt-4 overflow-x-auto rounded-md bg-muted p-5 text-xs leading-6">
                   <code>{`<script>
   const waline = new Waline({
     el: "#comments",
@@ -280,24 +333,24 @@ export default function Home() {
 
         <section>
           <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-            <div className="rounded-lg bg-[#0c1d24] px-6 py-14 text-center text-white sm:px-12">
+            <div className="rounded-lg bg-card px-6 py-14 text-center shadow-sm sm:px-12">
               <h2 className="text-3xl font-semibold tracking-tight">
                 现在就把评论迁移到无尽书证
               </h2>
-              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-white/65">
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
                 免费创建实例，完成 PoW 验证后立即获得专属 API 地址。
               </p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
                 <Link
                   href="/register"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-teal-400 px-5 text-sm font-semibold text-[#0c1d24] hover:bg-teal-300"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                 >
                   免费开始
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   href="/pricing"
-                  className="inline-flex h-11 items-center justify-center rounded-md border border-white/20 bg-white/5 px-5 text-sm font-medium text-white hover:bg-white/10"
+                  className="inline-flex h-11 items-center justify-center rounded-md border bg-background px-5 text-sm font-medium hover:bg-accent"
                 >
                   查看定价
                 </Link>

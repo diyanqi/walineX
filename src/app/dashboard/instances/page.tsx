@@ -28,7 +28,6 @@ export default async function InstancesPage() {
     status: instance.status,
     createdAt: instance.createdAt,
     url: instanceUrl(instance.slug),
-    apiUrl: `${instanceUrl(instance.slug)}/api`,
   }));
   return (
     <InstancesManager

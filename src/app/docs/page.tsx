@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 function CodeBlock({ code }: { code: string }) {
   return (
-    <pre className="overflow-x-auto rounded-md bg-[#0c1d24] p-5 text-xs leading-6 text-white/85">
+    <pre className="overflow-x-auto rounded-md bg-muted p-5 text-xs leading-6">
       <code>{code}</code>
     </pre>
   );
@@ -60,7 +60,7 @@ export default function DocsPage() {
                 { title: "1. 注册账号", text: "使用 GitHub 或 Google 完成 OAuth 登录，注册即自动创建账号。" },
                 { title: "2. 创建实例", text: "在控制台创建实例，得到 instance.waline.infvar.com/{标识} 地址。" },
                 { title: "3. 配置接入网站", text: "在实例编辑页填写自己的博客域名，开启 CORS 防盗链。" },
-                { title: "4. 替换 serverURL", text: "在 Waline 客户端中把 serverURL 指向实例的 /api 地址。" },
+                { title: "4. 替换 serverURL", text: "在 Waline 客户端中把 serverURL 指向实例地址，客户端会自行请求 /api 接口。" },
               ].map((item) => (
                 <div key={item.title} className="rounded-lg border bg-background p-5">
                   <p className="font-medium">{item.title}</p>
@@ -82,7 +82,7 @@ export default function DocsPage() {
               </p>
               <p>
                 实例地址格式为 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">https://instance.waline.infvar.com/{'{标识}'}</code>
-                ，评论 API 地址为 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">https://instance.waline.infvar.com/{'{标识}'}/api</code>。
+                。Waline 客户端会自动在实例地址后请求 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/api</code> 评论接口。
               </p>
               <p>
                 你可以在实例列表中复制 API 地址、启停实例、修改名称，或进入审核与通知页面配置策略。

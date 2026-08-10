@@ -36,7 +36,6 @@ export interface DashboardInstance {
   status: string;
   createdAt: Date | string;
   url: string;
-  apiUrl: string;
 }
 
 interface InstancesManagerProps {
@@ -209,7 +208,7 @@ export function InstancesManager({
 
   async function copyUrl(instance: DashboardInstance) {
     try {
-      await navigator.clipboard.writeText(instance.apiUrl);
+      await navigator.clipboard.writeText(instance.url);
       setCopiedId(instance.id);
       window.setTimeout(() => setCopiedId(null), 1600);
     } catch {
@@ -253,7 +252,7 @@ export function InstancesManager({
         <div className="overflow-hidden rounded-lg border bg-background">
           <div className="hidden grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_auto] gap-4 border-b bg-muted/40 px-5 py-3 text-xs font-medium text-muted-foreground sm:grid">
             <span>实例</span>
-            <span>API 地址</span>
+            <span>实例地址</span>
             <span className="text-right">操作</span>
           </div>
           <div className="divide-y">
@@ -287,12 +286,12 @@ export function InstancesManager({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <code className="truncate rounded border bg-muted/50 px-2 py-1 text-xs">
-                      {instance.apiUrl}
+                      {instance.url}
                     </code>
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label="复制 API 地址"
+                      aria-label="复制实例地址"
                       onClick={() => void copyUrl(instance)}
                     >
                       {copiedId === instance.id ? (
@@ -303,7 +302,6 @@ export function InstancesManager({
                     </Button>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>{instance.url}</span>
                     <span>
                       {instance.targetOrigins?.length
                         ? `${instance.targetOrigins.length} 个接入网站`

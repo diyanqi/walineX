@@ -9,6 +9,7 @@ import {
   Gauge,
   LogOut,
   Menu,
+  MessageSquare,
   MessageSquareText,
   Settings,
   ShieldCheck,
@@ -41,8 +42,8 @@ export function DashboardNav({ name, email, avatar, plan }: DashboardNavProps) {
     <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-            书
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <MessageSquare className="h-3.5 w-3.5" />
           </span>
           <span className="hidden sm:inline">无尽书证</span>
         </Link>
