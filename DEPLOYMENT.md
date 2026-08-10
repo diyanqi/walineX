@@ -153,6 +153,22 @@ services:
 `DATABASE_URL` 改为 `postgresql://用户:密码@host.docker.internal:5432/数据库?schema=public`。
 用 `docker inspect` 查容器 IP 直接填入也可以，但容器重建后 IP 可能变化，不适合长期使用。
 
+### 日志只显示 AggregateError
+
+新版 Node 在主机名解析出多个地址、且全部连接失败时，会把多个错误合并成 `AggregateError`，
+所以日志里看不到具体原因。不用重新构建镜像，直接在服务器上执行下面这条命令看底层错误：
+
+```bash
+docker compose run --rm migrate node -e 'const {Client}=require("pg");const c=new Client({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:5000});c.connect().then(()=>console.log("DB OK")).catch((e)=>console.error("ERR:",(e.errors||[]).map((x)=>x.message).join(" | ")||e.message)).finally(()=>c.end().catch(()=>{}))'
+```
+
+常见底层原因：
+
+- `ECONNREFUSED`：端口没开、没映射，或 PostgreSQL 没有监听该地址。
+- `ETIMEDOUT` / `EHOSTUNREACH`：网络仍然不通，确认 walinex 和 PostgreSQL 已接入同一个 Docker 网络。
+- `password authentication failed`：数据库账号或密码不对。
+- `database "xxx" does not exist`：数据库名写错了，先在 1Panel 里确认实际库名。
+
 ## 5. 反向代理与 HTTPS
 
 以 Caddy 为例：
