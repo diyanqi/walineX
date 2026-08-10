@@ -74,7 +74,9 @@ export async function listDashboardComments(
     prisma.comment.findMany({
       where,
       include: {
-        instance: { select: { id: true, slug: true, name: true } },
+        instance: {
+          select: { id: true, slug: true, name: true, aiSpamThreshold: true },
+        },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,

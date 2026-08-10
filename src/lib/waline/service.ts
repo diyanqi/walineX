@@ -325,10 +325,10 @@ export async function createComment(
     return { error: { errno: 403, errmsg: moderation.reason || "评论已被拦截。" } };
   }
 
-  const status: WalineCommentStatus = isOwner
-    ? "approved"
-    : moderation.spam
-      ? "spam"
+  const status: WalineCommentStatus = moderation.spam
+    ? "spam"
+    : isOwner
+      ? "approved"
       : moderation.review || instance.moderationEnabled
         ? "waiting"
         : instance.defaultCommentStatus;

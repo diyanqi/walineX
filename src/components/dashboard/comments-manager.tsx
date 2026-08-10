@@ -39,7 +39,7 @@ export interface DashboardCommentItem {
   createdAt: string;
   spamScore: number | null;
   moderationReason: string | null;
-  instance: { id: string; slug: string; name: string };
+  instance: { id: string; slug: string; name: string; aiSpamThreshold: number };
 }
 
 interface CommentsManagerProps {
@@ -263,7 +263,10 @@ export function CommentsManager({
                       {comment.ip ? <span>IP {comment.ip}</span> : null}
                       {comment.addr ? <span>{comment.addr}</span> : null}
                       {comment.spamScore !== null ? (
-                        <span>AI 分 {comment.spamScore.toFixed(2)}</span>
+                        <span>
+                          AI 分 {comment.spamScore.toFixed(2)} / 阈值{" "}
+                          {comment.instance.aiSpamThreshold.toFixed(2)}
+                        </span>
                       ) : null}
                       {comment.moderationReason ? (
                         <span>{comment.moderationReason}</span>

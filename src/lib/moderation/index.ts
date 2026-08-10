@@ -5,6 +5,14 @@ import { checkSensitiveWords } from "@/lib/moderation/sensitive";
 import type { ModerationInput, ModerationResult } from "@/lib/moderation/types";
 import { prisma } from "@/lib/prisma";
 import { planLimits } from "@/lib/plans";
+import { env } from "@/lib/env";
+
+export function aiResultIsSpam(
+  result: { spam: boolean; toxic: boolean; score: number },
+  threshold: number,
+): boolean {
+  return result.spam || result.toxic || result.score >= threshold;
+}
 
 export async function moderateComment(
   instance: Instance,
@@ -44,14 +52,21 @@ export async function moderateComment(
   const [aiResult] = await Promise.all([
     ai ? ai.classify(input) : Promise.resolve(null),
   ]);
+  const rawThreshold = Number(instance.aiSpamThreshold ?? env("AI_MODERATION_SPAM_THRESHOLD", "0.6"));
+  const spamThreshold = Number.isFinite(rawThreshold) ? rawThreshold : 0.6;
 
   let score = 0;
   let reason: string | undefined;
   if (aiResult) {
     score = aiResult.score;
-    if (aiResult.spam || aiResult.toxic) {
+    const thresholdHit = score >= spamThreshold;
+    if (aiResultIsSpam(aiResult, spamThreshold)) {
       signals.spam = true;
-      reason = aiResult.reason || reason;
+      reason =
+        aiResult.reason ||
+        (thresholdHit
+          ? `AI 分 ${score.toFixed(2)} 达到阈值 ${spamThreshold.toFixed(2)}，自动判为垃圾`
+          : undefined);
     }
   }
 
@@ -59,6 +74,12 @@ export async function moderateComment(
     signals.blocked = false;
     signals.review = false;
     signals.reason = reason || "系统判定为垃圾评论";
+  } else if (instance.aiModerationEnabled && !aiResult) {
+    signals.reason =
+      signals.reason ||
+      (owner && !planLimits(owner.plan).aiModeration
+        ? "AI 审核未执行（当前套餐无权限）"
+        : "AI 审核未执行（未配置 API Key 或请求失败）");
   }
   if (aiResult) signals.score = score;
   return signals;

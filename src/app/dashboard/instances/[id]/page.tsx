@@ -57,6 +57,7 @@ export default async function InstanceSettingsPage({
     commentRateLimitMax: instance.commentRateLimitMax,
     commentRateLimitWindowSec: instance.commentRateLimitWindowSec,
     aiModerationEnabled: instance.aiModerationEnabled,
+    aiSpamThreshold: instance.aiSpamThreshold,
     aiConfigured: Boolean(
       instance.aiApiKeyEncrypted || env("AI_MODERATION_API_KEY"),
     ),

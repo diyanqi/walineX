@@ -57,7 +57,7 @@ EPAY_GATEWAY=...
 可选变量：
 
 - `ADMIN_EMAIL` / `ADMIN_NAME`：平台管理员邮箱（支持英文逗号分隔多个）；用户用该邮箱完成 OAuth 登录后会自动成为管理员，seed 也会创建对应账号。
-- `AI_MODERATION_BASE_URL` / `AI_MODERATION_MODEL` / `AI_MODERATION_API_KEY`：AI 审核默认 OpenAI 兼容端点，API Key 可用英文逗号分隔多个实现轮询。
+- `AI_MODERATION_BASE_URL` / `AI_MODERATION_MODEL` / `AI_MODERATION_API_KEY`：AI 审核默认 OpenAI 兼容端点，API Key 可用英文逗号分隔多个实现轮询；`AI_MODERATION_SPAM_THRESHOLD` 是平台默认垃圾判定阈值，实例可单独覆盖。
 - `APP_PORT`：宿主机映射端口，默认 `3033`。
 - `REDIS_URL` / `REDIS_ENABLED`：可选的外部 Redis；不配置时自动关闭并退回内存限流。
 
@@ -242,5 +242,5 @@ pg_dump -U waline -h db.example.com walinex | gzip > walinex-$(date +%F).sql.gz
 3. 使用 GitHub 登录并创建实例。
 4. 用任意 Waline 客户端指向 `https://instance.waline.infvar.com/{实例标识}/api` 发评论，也可以在实例编辑页导入/导出 Waline JSON 数据。
 5. 在控制台审核评论、配置敏感词和通知。
-6. 配置 `AI_MODERATION_API_KEY` 后，在实例编辑页打开“AI 垃圾审核”；发一条测试评论，评论管理中出现“AI 分”即表示 AI 已参与审核。
+6. 配置 `AI_MODERATION_API_KEY` 后，在实例编辑页打开“AI 垃圾审核”（可与“启用审核”独立开关）；发一条测试评论，评论管理中出现“AI 分 / 阈值”即表示 AI 已参与审核。
 7. 在实例编辑页绑定微信并发送一条评论，确认通知到达。

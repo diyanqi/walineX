@@ -37,6 +37,7 @@ export async function GET(
             sensitiveWordMode: instance.sensitiveWordMode,
             defaultCommentStatus: instance.defaultCommentStatus,
             aiModerationEnabled: instance.aiModerationEnabled,
+            aiSpamThreshold: instance.aiSpamThreshold,
             aiConfigured: Boolean(
               instance.aiApiKeyEncrypted || env("AI_MODERATION_API_KEY"),
             ),
@@ -98,6 +99,14 @@ export async function PUT(
       COMMENT_STATUSES.has(body.defaultCommentStatus)
     ) {
       data.defaultCommentStatus = body.defaultCommentStatus;
+    }
+    if (
+      typeof body.aiSpamThreshold === "number" &&
+      Number.isFinite(body.aiSpamThreshold) &&
+      body.aiSpamThreshold >= 0 &&
+      body.aiSpamThreshold <= 1
+    ) {
+      data.aiSpamThreshold = Math.round(body.aiSpamThreshold * 100) / 100;
     }
     if (
       typeof body.commentRateLimitMax === "number" &&

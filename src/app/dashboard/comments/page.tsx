@@ -48,6 +48,7 @@ export default async function CommentsPage({
       id: comment.instance.id,
       slug: comment.instance.slug,
       name: comment.instance.name,
+      aiSpamThreshold: comment.instance.aiSpamThreshold,
     },
   }));
   return (

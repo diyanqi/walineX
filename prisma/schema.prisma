@@ -182,6 +182,7 @@ model Instance {
   akismetEnabled            Boolean             @default(false)
   akismetKeyEncrypted       String?
   aiModerationEnabled       Boolean             @default(false)
+  aiSpamThreshold           Float               @default(0.6)
   aiApiBaseUrl              String?
   aiApiKeyEncrypted         String?
   aiModel                   String?

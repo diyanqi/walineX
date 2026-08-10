@@ -54,6 +54,7 @@ export interface InstanceSettingsData {
   commentRateLimitMax: number;
   commentRateLimitWindowSec: number;
   aiModerationEnabled: boolean;
+  aiSpamThreshold: number;
   aiConfigured: boolean;
   aiModerationAllowed: boolean;
   notifyNewComment: boolean;
@@ -840,6 +841,28 @@ export function InstanceSettings({
                 disabled={!data.aiConfigured}
                 onCheckedChange={(value) => void saveModeration({ aiModerationEnabled: value })}
               />
+            </div>
+            <div className="grid gap-2 rounded-md border p-4">
+              <Label htmlFor="ai-spam-threshold">AI 垃圾判定阈值</Label>
+              <Input
+                id="ai-spam-threshold"
+                type="number"
+                min={0}
+                max={1}
+                step={0.05}
+                defaultValue={data.aiSpamThreshold}
+                disabled={!data.aiConfigured}
+                onBlur={(event) => {
+                  const parsed = Number(event.target.value);
+                  const value = Number.isFinite(parsed)
+                    ? Math.min(1, Math.max(0, parsed))
+                    : 0.6;
+                  void saveModeration({ aiSpamThreshold: value });
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                AI 分达到或超过该值时自动判为垃圾。
+              </p>
             </div>
                 </CardContent>
               </Card>

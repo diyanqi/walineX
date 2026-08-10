@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Instance" ADD COLUMN "aiSpamThreshold" DOUBLE PRECISION NOT NULL DEFAULT 0.6;
