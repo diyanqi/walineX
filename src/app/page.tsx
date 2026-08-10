@@ -60,7 +60,7 @@ const FEATURES = [
   {
     icon: DatabaseBackup,
     title: "数据迁移",
-    description: "实例编辑页支持 Waline 官方 JSON 导入导出，备份、换站或迁移评论都很简单。",
+    description: "实例编辑页支持 Waline 官方 JSON 导入导出，评论、浏览量和回复关系都能完整迁移。",
   },
   {
     icon: Network,
@@ -93,7 +93,7 @@ const FAQS = [
   {
     question: "我能从其他评论系统迁移过来吗？",
     answer:
-      "可以。实例编辑页支持 Waline 官方 JSON 导入导出，也兼容 Twikoo、Artalk 等常见导出格式；导入后会保留评论状态、时间和回复关系。",
+      "可以。实例编辑页支持 Waline 官方 JSON 导入导出，也兼容 Twikoo、Artalk 等常见导出格式；导入后会保留评论状态、时间、回复关系和浏览量数据。",
   },
 ];
 

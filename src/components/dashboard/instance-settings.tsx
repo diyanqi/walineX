@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   ArrowLeft,
+  Ban,
   Bell,
   BrainCircuit,
   CheckCircle2,
@@ -12,10 +13,12 @@ import {
   Plus,
   QrCode,
   Save,
+  Settings,
   ShieldCheck,
   Trash2,
   Unlink,
   Upload,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -138,6 +141,18 @@ const RULE_TYPE_LABELS: Record<string, string> = {
   nick_blacklist: "昵称黑名单",
 };
 
+type SettingsTab = "basic" | "review" | "ai" | "words" | "rules" | "data" | "notifications";
+
+const NAV_ITEMS: Array<{ id: SettingsTab; label: string; icon: LucideIcon }> = [
+  { id: "basic", label: "基本信息", icon: Settings },
+  { id: "review", label: "基础审核", icon: ShieldCheck },
+  { id: "ai", label: "AI 审核", icon: BrainCircuit },
+  { id: "words", label: "敏感词", icon: Filter },
+  { id: "rules", label: "黑名单规则", icon: Ban },
+  { id: "data", label: "数据导入导出", icon: Download },
+  { id: "notifications", label: "通知设置", icon: Bell },
+];
+
 export function InstanceSettings({
   initial,
   sensitiveWords: initialWords,
@@ -166,6 +181,7 @@ export function InstanceSettings({
   const [qrPolling, setQrPolling] = React.useState(false);
   const [qrMessage, setQrMessage] = React.useState("");
   const [importing, setImporting] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<SettingsTab>("basic");
 
   function notify(message: string, isError = false) {
     setMessage(isError ? "" : message);
@@ -496,14 +512,14 @@ export function InstanceSettings({
       const payload = (await response.json()) as {
         errno?: number;
         errmsg?: string;
-        data?: { imported: number; skipped: number; failed: number };
+        data?: { imported: number; skipped: number; failed: number; counters?: number };
       };
       if (!response.ok || !payload.data) {
         notify(payload.errmsg || "导入失败", true);
         return;
       }
       notify(
-        `导入完成：新增 ${payload.data.imported} 条，跳过 ${payload.data.skipped} 条，失败 ${payload.data.failed} 条`,
+        `导入完成：新增 ${payload.data.imported} 条评论，跳过 ${payload.data.skipped} 条，失败 ${payload.data.failed} 条，浏览量 ${payload.data.counters ?? 0} 条`,
       );
     } catch {
       notify("网络请求失败，请重试", true);
@@ -545,9 +561,35 @@ export function InstanceSettings({
         </p>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>基本信息</CardTitle>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <aside className="w-full shrink-0 lg:w-56">
+          <nav className="flex gap-1 overflow-x-auto rounded-lg border bg-background p-1 lg:flex-col">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-current={activeTab === item.id ? "page" : undefined}
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                    activeTab === item.id
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                  onClick={() => setActiveTab(item.id)}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+        <main className="min-w-0 flex-1 space-y-6">
+          <div className={activeTab === "basic" ? "" : "hidden"}>
+            <Card>
+              <CardHeader>
+                <CardTitle>基本信息</CardTitle>
           <CardDescription>实例名称、标识和允许接入的网站。</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -605,18 +647,20 @@ export function InstanceSettings({
               保存基本信息
             </Button>
           </div>
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            基础审核
-          </CardTitle>
-          <CardDescription>评论进入站点前的开关、敏感词和黑名单规则。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
+          <div className={activeTab === "review" ? "" : "hidden"}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  基础审核
+                </CardTitle>
+                <CardDescription>评论进入站点前的开关、敏感词和黑名单规则。</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="flex items-center justify-between rounded-md border px-4 py-3">
               <div>
@@ -697,23 +741,25 @@ export function InstanceSettings({
               </Select>
             </div>
           </div>
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          </div>
 
-      {data.aiModerationAllowed ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BrainCircuit className="h-4 w-4 text-primary" />
-              垃圾与 AI 审核
-            </CardTitle>
-            <CardDescription>
-              {data.aiConfigured
-                ? "平台已配置 AI 审核，只需打开开关。"
-                : "平台尚未配置 AI 审核，请联系管理员。"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+          {data.aiModerationAllowed ? (
+            <div className={activeTab === "ai" ? "" : "hidden"}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BrainCircuit className="h-4 w-4 text-primary" />
+                    垃圾与 AI 审核
+                  </CardTitle>
+                  <CardDescription>
+                    {data.aiConfigured
+                      ? "平台已配置 AI 审核，只需打开开关。"
+                      : "平台尚未配置 AI 审核，请联系管理员。"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
             <div className="flex items-center justify-between rounded-md border px-4 py-3">
               <div>
                 <p className="text-sm font-medium">AI 垃圾审核</p>
@@ -727,19 +773,21 @@ export function InstanceSettings({
                 onCheckedChange={(value) => void saveModeration({ aiModerationEnabled: value })}
               />
             </div>
-          </CardContent>
-        </Card>
-      ) : null}
+                </CardContent>
+              </Card>
+            </div>
+          ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-primary" />
-            敏感词
-          </CardTitle>
-          <CardDescription>添加自定义敏感词，支持拦截、替换或转入审核。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          <div className={activeTab === "words" ? "" : "hidden"}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-primary" />
+                  敏感词
+                </CardTitle>
+                <CardDescription>添加自定义敏感词，支持拦截、替换或转入审核。</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_150px_150px_auto]">
             <Input
               value={word}
@@ -820,17 +868,19 @@ export function InstanceSettings({
             </div>
           )}
         </CardContent>
-      </Card>
+              </Card>
+            </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-primary" />
-            黑名单规则
-          </CardTitle>
-          <CardDescription>按 IP、用户、邮箱、链接或昵称拦截可疑评论者。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+            <div className={activeTab === "rules" ? "" : "hidden"}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-primary" />
+                    黑名单规则
+                  </CardTitle>
+                  <CardDescription>按 IP、用户、邮箱、链接或昵称拦截可疑评论者。</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
           <div className="grid gap-2 sm:grid-cols-[200px_minmax(0,1fr)_auto]">
             <Select value={ruleType} onValueChange={setRuleType}>
               <SelectTrigger>
@@ -886,17 +936,19 @@ export function InstanceSettings({
             </div>
           )}
         </CardContent>
-      </Card>
+              </Card>
+            </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Download className="h-4 w-4 text-primary" />
-            数据导入导出
-          </CardTitle>
-          <CardDescription>使用 Waline 官方 JSON 格式迁移评论数据。</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className={activeTab === "data" ? "" : "hidden"}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Download className="h-4 w-4 text-primary" />
+                    数据导入导出
+                  </CardTitle>
+                  <CardDescription>使用 Waline 官方 JSON 格式迁移评论、浏览量和回复关系。</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Button variant="outline" onClick={() => void exportData()} disabled={saving}>
             <Download />
             导出 JSON
@@ -917,17 +969,19 @@ export function InstanceSettings({
             />
           </label>
         </CardContent>
-      </Card>
+              </Card>
+            </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-primary" />
-            通知设置
-          </CardTitle>
-          <CardDescription>每个实例独立绑定微信，事件直接推送到微信。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
+            <div className={activeTab === "notifications" ? "" : "hidden"}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bell className="h-4 w-4 text-primary" />
+                    通知设置
+                  </CardTitle>
+                  <CardDescription>每个实例独立绑定微信，事件直接推送到微信。</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
           {!data.wechatNotificationsAllowed ? (
             <div className="rounded-md border border-amber-300/50 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
               当前免费套餐不包含微信通知，升级套餐后即可扫码绑定。
@@ -1028,7 +1082,10 @@ export function InstanceSettings({
             </>
           )}
         </CardContent>
-      </Card>
+              </Card>
+            </div>
+          </main>
+        </div>
     </div>
   );
 }

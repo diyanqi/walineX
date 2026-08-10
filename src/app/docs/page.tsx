@@ -192,8 +192,8 @@ export default function DocsPage() {
             <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
               <p>
                 在实例编辑页可以导出当前实例的 Waline 官方 JSON 数据，也可以导入 Waline、
-                Twikoo 或 Artalk 导出的 JSON 评论数据。导入会保留原文、状态、时间与回复关系，
-                已存在的外键标识会自动跳过。
+                Twikoo 或 Artalk 导出的 JSON 评论数据。导入会保留原文、状态、时间、回复关系
+                与浏览量数据，已存在的外键标识会自动跳过。
               </p>
             </div>
           </section>

@@ -3,6 +3,8 @@
 import * as React from "react";
 import {
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Flag,
   Loader2,
   RotateCcw,
@@ -36,21 +38,31 @@ export interface DashboardCommentItem {
 interface CommentsManagerProps {
   instances: Array<{ id: string; slug: string; name: string }>;
   initialComments: DashboardCommentItem[];
+  initialCount: number;
+  initialTotalPages: number;
 }
 
-export function CommentsManager({ instances, initialComments }: CommentsManagerProps) {
+export function CommentsManager({
+  instances,
+  initialComments,
+  initialCount,
+  initialTotalPages,
+}: CommentsManagerProps) {
   const [comments, setComments] = React.useState(initialComments);
+  const [page, setPage] = React.useState(1);
+  const [count, setCount] = React.useState(initialCount);
+  const [totalPages, setTotalPages] = React.useState(Math.max(1, initialTotalPages));
   const [keyword, setKeyword] = React.useState("");
   const [status, setStatus] = React.useState("all");
   const [instanceId, setInstanceId] = React.useState("all");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
 
-  async function load() {
+  async function load(requestedPage = 1) {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ page: "1", pageSize: "50" });
+      const params = new URLSearchParams({ page: String(requestedPage), pageSize: "50" });
       if (keyword.trim()) params.set("keyword", keyword.trim());
       if (status !== "all") params.set("status", status);
       if (instanceId !== "all") params.set("instanceId", instanceId);
@@ -61,12 +73,18 @@ export function CommentsManager({ instances, initialComments }: CommentsManagerP
         errno?: number;
         errmsg?: string;
         data?: DashboardCommentItem[];
+        count?: number;
+        page?: number;
+        totalPages?: number;
       };
       if (!response.ok) {
         setError(payload.errmsg || "加载失败");
         return;
       }
       setComments(payload.data || []);
+      setCount(payload.count ?? 0);
+      setPage(payload.page ?? requestedPage);
+      setTotalPages(Math.max(1, payload.totalPages ?? 1));
     } catch {
       setError("网络请求失败");
     } finally {
@@ -266,6 +284,33 @@ export function CommentsManager({ instances, initialComments }: CommentsManagerP
           </div>
         </div>
       )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">共 {count} 条评论</p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1 || loading}
+            onClick={() => void load(page - 1)}
+          >
+            <ChevronLeft />
+            上一页
+          </Button>
+          <span className="min-w-20 text-center text-sm text-muted-foreground">
+            第 {page} / {totalPages} 页
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages || loading}
+            onClick={() => void load(page + 1)}
+          >
+            下一页
+            <ChevronRight />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -39,6 +39,16 @@ function commonHeaders(): Record<string, string> {
   };
 }
 
+function normalizeQrImage(value: string): string {
+  const trimmed = value.trim();
+  if (/^\/\//.test(trimmed)) return `https:${trimmed}`;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const compact = trimmed.replace(/\s+/g, "");
+  if (/^data:image\//i.test(compact)) return compact;
+  const mime = /^\/9j/.test(compact) ? "image/jpeg" : "image/png";
+  return `data:${mime};base64,${compact}`;
+}
+
 export async function startWechatQr(): Promise<WechatQrStart> {
   const response = await fetch(
     `${FIXED_API_BASE_URL}/ilink/bot/get_bot_qrcode?bot_type=3`,
@@ -58,7 +68,10 @@ export async function startWechatQr(): Promise<WechatQrStart> {
   if (!payload.qrcode || !payload.qrcode_img_content) {
     throw new Error("微信二维码响应不完整");
   }
-  return { qrcode: payload.qrcode, qrcodeImg: payload.qrcode_img_content };
+  return {
+    qrcode: payload.qrcode,
+    qrcodeImg: normalizeQrImage(payload.qrcode_img_content),
+  };
 }
 
 async function fetchQrStatus(baseUrl: string, qrcode: string): Promise<WechatQrStatus> {

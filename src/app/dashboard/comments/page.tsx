@@ -37,5 +37,12 @@ export default async function CommentsPage() {
       name: comment.instance.name,
     },
   }));
-  return <CommentsManager instances={instances} initialComments={comments} />;
+  return (
+    <CommentsManager
+      instances={instances}
+      initialComments={comments}
+      initialCount={initial.count}
+      initialTotalPages={initial.totalPages}
+    />
+  );
 }

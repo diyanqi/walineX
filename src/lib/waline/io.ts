@@ -42,6 +42,22 @@ interface RawComment {
   moderatedBy?: unknown;
 }
 
+interface RawCounter {
+  url?: unknown;
+  path?: unknown;
+  page_key?: unknown;
+  time?: unknown;
+  reaction0?: unknown;
+  reaction1?: unknown;
+  reaction2?: unknown;
+  reaction3?: unknown;
+  reaction4?: unknown;
+  reaction5?: unknown;
+  reaction6?: unknown;
+  reaction7?: unknown;
+  reaction8?: unknown;
+}
+
 interface NormalizedComment {
   importId: string | null;
   url: string;
@@ -111,6 +127,19 @@ function extractComments(payload: unknown): RawComment[] {
   return [];
 }
 
+function extractCounters(payload: unknown): RawCounter[] {
+  if (!payload || typeof payload !== "object") return [];
+  const object = payload as Record<string, unknown>;
+  if (Array.isArray(object.counters)) return object.counters as RawCounter[];
+  if (Array.isArray(object.Counter)) return object.Counter as RawCounter[];
+  if (object.data && typeof object.data === "object") {
+    const data = object.data as Record<string, unknown>;
+    if (Array.isArray(data.Counter)) return data.Counter as RawCounter[];
+    if (Array.isArray(data.counters)) return data.counters as RawCounter[];
+  }
+  return [];
+}
+
 function normalizeComment(raw: RawComment): NormalizedComment | null {
   const comment = String(raw.comment ?? raw.content ?? "").trim();
   const nick = String(raw.nick ?? "").trim();
@@ -151,7 +180,7 @@ function normalizeComment(raw: RawComment): NormalizedComment | null {
 }
 
 export async function exportWalineData(instanceId: string) {
-  const [comments, users] = await Promise.all([
+  const [comments, users, counters] = await Promise.all([
     prisma.comment.findMany({
       where: { instanceId },
       orderBy: { createdAt: "asc" },
@@ -164,6 +193,10 @@ export async function exportWalineData(instanceId: string) {
         ],
       },
       select: { objectId: true, email: true, name: true, avatar: true, url: true },
+    }),
+    prisma.articleCounter.findMany({
+      where: { instanceId },
+      orderBy: { url: "asc", type: "asc" },
     }),
   ]);
   return {
@@ -205,13 +238,62 @@ export async function exportWalineData(instanceId: string) {
       avatar: user.avatar,
       url: user.url,
     })),
+    counters: counters.map((counter) => ({
+      url: counter.url,
+      type: counter.type,
+      value: counter.value,
+    })),
   };
+}
+
+async function importWalineCounters(
+  instanceId: string,
+  payload: unknown,
+): Promise<number> {
+  const records = extractCounters(payload);
+  const entries: Array<{
+    instanceId: string;
+    url: string;
+    type: string;
+    value: number;
+  }> = [];
+  for (const raw of records) {
+    const url = String(raw.url ?? raw.path ?? raw.page_key ?? "/")
+      .slice(0, 1000) || "/";
+    const values: Array<[string, unknown]> = [
+      ["time", raw.time],
+      ["reaction0", raw.reaction0],
+      ["reaction1", raw.reaction1],
+      ["reaction2", raw.reaction2],
+      ["reaction3", raw.reaction3],
+      ["reaction4", raw.reaction4],
+      ["reaction5", raw.reaction5],
+      ["reaction6", raw.reaction6],
+      ["reaction7", raw.reaction7],
+      ["reaction8", raw.reaction8],
+    ];
+    for (const [type, value] of values) {
+      const number = toNumber(value);
+      if (number == null || number <= 0) continue;
+      entries.push({ instanceId, url, type, value: number });
+    }
+  }
+  if (entries.length === 0) return 0;
+  let count = 0;
+  for (let index = 0; index < entries.length; index += 1000) {
+    const result = await prisma.articleCounter.createMany({
+      data: entries.slice(index, index + 1000),
+      skipDuplicates: true,
+    });
+    count += result.count;
+  }
+  return count;
 }
 
 export async function importWalineComments(
   instanceId: string,
   payload: unknown,
-): Promise<{ imported: number; skipped: number; failed: number }> {
+): Promise<{ imported: number; skipped: number; failed: number; counters: number }> {
   const records = extractComments(payload)
     .map(normalizeComment)
     .filter((item): item is NormalizedComment => item !== null);
@@ -302,5 +384,11 @@ export async function importWalineComments(
       },
     });
   }
-  return { imported, skipped, failed };
+  let counters = 0;
+  try {
+    counters = await importWalineCounters(instanceId, payload);
+  } catch (error) {
+    console.error("Waline counter import failed", error);
+  }
+  return { imported, skipped, failed, counters };
 }
