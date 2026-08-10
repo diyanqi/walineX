@@ -77,7 +77,7 @@ GitHub 账号注册时间不足一个月的用户会被拒绝登录。
 
 ## 4. 启动
 
-镜像由 GitHub Actions 自动构建并推送到 GHCR，同时包含 `linux/amd64` 与 `linux/arm64/v8`，因此 ARM VPS 可以直接拉取。先拉取镜像并准备好外部数据库：
+镜像由 GitHub Actions 自动构建并推送到 GHCR，构建 `linux/arm64/v8` 架构，ARM VPS 可以直接拉取。先拉取镜像并准备好外部数据库：
 
 ```bash
 docker pull ghcr.io/diyanqi/walinex:latest
