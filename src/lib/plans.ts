@@ -8,8 +8,7 @@ export interface PlanLimits {
   likesPerMinute: number;
   commentsPerMinute: number;
   aiModeration: boolean;
-  akismet: boolean;
-  emailNotifications: boolean;
+  wechatNotifications: boolean;
   priceMonthly: number;
   priceYearly: number;
 }
@@ -18,13 +17,12 @@ export const PLANS: Record<Plan, PlanLimits> = {
   free: {
     name: "免费版",
     instances: 1,
-    monthlyComments: 5_000,
-    totalComments: 50_000,
+    monthlyComments: 1_000,
+    totalComments: 5_000,
     likesPerMinute: 30,
     commentsPerMinute: 6,
     aiModeration: false,
-    akismet: false,
-    emailNotifications: false,
+    wechatNotifications: false,
     priceMonthly: 0,
     priceYearly: 0,
   },
@@ -36,10 +34,9 @@ export const PLANS: Record<Plan, PlanLimits> = {
     likesPerMinute: 120,
     commentsPerMinute: 30,
     aiModeration: true,
-    akismet: true,
-    emailNotifications: true,
-    priceMonthly: 29,
-    priceYearly: 290,
+    wechatNotifications: true,
+    priceMonthly: 3.9,
+    priceYearly: 39,
   },
   pro: {
     name: "专业版",
@@ -49,10 +46,9 @@ export const PLANS: Record<Plan, PlanLimits> = {
     likesPerMinute: 600,
     commentsPerMinute: 120,
     aiModeration: true,
-    akismet: true,
-    emailNotifications: true,
-    priceMonthly: 99,
-    priceYearly: 990,
+    wechatNotifications: true,
+    priceMonthly: 19.9,
+    priceYearly: 199,
   },
 };
 

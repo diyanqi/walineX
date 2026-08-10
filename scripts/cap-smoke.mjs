@@ -126,5 +126,4 @@ async function assertAuthStart(provider, capToken) {
 }
 
 await assertAuthStart("github", await redeemCap(scope));
-await assertAuthStart("google", await redeemCap(scope));
 console.log("cap smoke test passed");

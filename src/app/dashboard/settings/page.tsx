@@ -32,8 +32,7 @@ export default async function SettingsPage() {
     { label: "每月评论额度", value: formatNumber(limits.monthlyComments) },
     { label: "累计评论额度", value: formatNumber(limits.totalComments) },
     { label: "AI 审核", enabled: limits.aiModeration },
-    { label: "Akismet 垃圾过滤", enabled: limits.akismet },
-    { label: "邮件通知", enabled: limits.emailNotifications },
+    { label: "微信通知", enabled: limits.wechatNotifications },
   ];
 
   return (
@@ -97,10 +96,10 @@ export default async function SettingsPage() {
               ))}
             </div>
             <Link
-              href="/pricing"
+              href="/dashboard/plans"
               className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
             >
-              查看套餐
+              管理计划
             </Link>
           </CardContent>
         </Card>
@@ -127,7 +126,11 @@ export default async function SettingsPage() {
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">
-                      {account.provider === "github" ? "GitHub" : "Google"}
+                      {account.provider === "github"
+                        ? "GitHub"
+                        : account.provider === "google"
+                          ? "Google（已停用）"
+                          : account.provider}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {account.displayName || account.email || account.providerAccountId}

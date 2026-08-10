@@ -1,33 +1,10 @@
-import nodemailer from "nodemailer";
-import type { Comment, Instance } from "@prisma/client";
-import { env } from "@/lib/env";
+import type { Comment, Instance, Notification } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { planLimits } from "@/lib/plans";
+import { decryptSecret } from "@/lib/crypto";
+import { sendWechatMessage } from "@/lib/wechat";
 
 type NotificationKind = "new_comment" | "reply" | "moderation";
-
-let queuePromise: Promise<import("bullmq").Queue | null> | null = null;
-
-async function getEmailQueue(): Promise<import("bullmq").Queue | null> {
-  if (env("REDIS_ENABLED", "false") !== "true") return null;
-  if (queuePromise) return queuePromise;
-  queuePromise = (async () => {
-    try {
-      const { Queue } = await import("bullmq");
-      const { default: Redis } = await import("ioredis");
-      const connection = new Redis(env("REDIS_URL", "redis://localhost:6379"), {
-        maxRetriesPerRequest: 1,
-        enableOfflineQueue: false,
-      });
-      return new Queue("walinex-emails", { connection });
-    } catch (error) {
-      console.error("Failed to initialize email queue", error);
-      queuePromise = null;
-      return null;
-    }
-  })();
-  return queuePromise;
-}
 
 interface EnqueueOptions {
   instance: Instance;
@@ -36,63 +13,59 @@ interface EnqueueOptions {
   parentComment?: Comment | null;
 }
 
-export interface QueuedEmailJob {
-  notificationId?: string;
-  userId?: string;
-  instanceId?: string;
-  to: string;
-  subject: string;
-  body: string;
-}
-
 function buildNotification(
   options: EnqueueOptions,
-): { enabled: boolean; recipient?: string; subject: string; body: string; to: string } | null {
+): { subject: string; body: string } | null {
   const { instance, type, comment, parentComment } = options;
-  const ownerEmail = instance.notificationEmail || undefined;
   if (type === "moderation") {
-    if (!ownerEmail || !instance.notifyModeration) return null;
+    if (!instance.notifyModeration) return null;
     return {
-      enabled: true,
-      to: ownerEmail,
       subject: `${instance.name} 有评论需要审核`,
       body: `${comment.nick} 在 ${comment.url} 留言：\n\n${comment.comment}`,
     };
   }
-  if (type === "reply" && parentComment?.mail) {
+  if (type === "reply") {
     if (!instance.notifyReply) return null;
+    const parent = parentComment;
+    const target = parent?.nick ? `${parent.nick} 的评论` : "你的评论";
     return {
-      enabled: true,
-      to: parentComment.mail,
-      subject: `你在 ${instance.name} 收到了新回复`,
-      body: `${comment.nick} 回复了你：\n\n${comment.comment}`,
+      subject: `${instance.name} 有新回复`,
+      body: `${comment.nick} 回复了 ${target}：\n\n${comment.comment}`,
     };
   }
-  if (!ownerEmail || !instance.notifyNewComment) return null;
+  if (!instance.notifyNewComment) return null;
   return {
-    enabled: true,
-    to: ownerEmail,
     subject: `${instance.name} 收到了新评论`,
     body: `${comment.nick} 在 ${comment.url} 留言：\n\n${comment.comment}`,
   };
 }
 
 export async function enqueueNotification(options: EnqueueOptions): Promise<void> {
+  const { instance } = options;
   const payload = buildNotification(options);
   if (!payload) return;
+  if (
+    !instance.wechatNotificationEnabled ||
+    !instance.wechatBotTokenEncrypted ||
+    !instance.wechatBaseUrl ||
+    !instance.wechatUserId
+  ) {
+    return;
+  }
 
   const owner = await prisma.user.findUnique({
-    where: { id: options.instance.userId },
+    where: { id: instance.userId },
     select: { plan: true },
   });
-  if (!owner || !planLimits(owner.plan).emailNotifications) return;
+  if (!owner || !planLimits(owner.plan).wechatNotifications) return;
 
   const notification = await prisma.notification.create({
     data: {
-      instanceId: options.instance.id,
-      userId: options.instance.userId,
+      instanceId: instance.id,
+      userId: instance.userId,
       type: options.type,
-      recipientEmail: payload.to,
+      recipientWechatId: instance.wechatUserId,
+      channel: "wechat",
       subject: payload.subject,
       body: payload.body,
       status: "pending",
@@ -100,101 +73,34 @@ export async function enqueueNotification(options: EnqueueOptions): Promise<void
     },
   });
 
-  const queue = await getEmailQueue();
-  if (queue) {
-    try {
-      await queue.add(
-        "send",
-        {
-          notificationId: notification.id,
-          userId: options.instance.userId,
-          instanceId: options.instance.id,
-          ...payload,
-        } satisfies QueuedEmailJob,
-        {
-          attempts: 3,
-          backoff: { type: "exponential", delay: 5_000 },
-          removeOnComplete: 500,
-          removeOnFail: 500,
-        },
-      );
-      return;
-    } catch (error) {
-      console.error("Failed to enqueue email notification", error);
-    }
-  }
-
-  void sendPendingNotifications();
-}
-
-function createTransport() {
-  return nodemailer.createTransport({
-    host: env("SMTP_HOST"),
-    port: Number(env("SMTP_PORT", "587")),
-    secure: env("SMTP_PORT", "587") === "465",
-    auth: env("SMTP_USER")
-      ? { user: env("SMTP_USER"), pass: env("SMTP_PASS") }
-      : undefined,
-  });
-}
-
-export async function sendQueuedEmail(payload: QueuedEmailJob): Promise<void> {
-  const transport = createTransport();
-  await transport.sendMail({
-    from: env("SMTP_FROM", "无尽书证 <noreply@waline.infvar.com>"),
-    to: payload.to,
-    subject: payload.subject,
-    text: payload.body,
-  });
-  await prisma.$transaction([
-    prisma.emailLog.create({
+  void deliverNotification(notification, instance).catch(async (error) => {
+    console.error("WeChat notification failed", error);
+    await prisma.notification.update({
+      where: { id: notification.id },
       data: {
-        userId: payload.userId,
-        instanceId: payload.instanceId,
-        to: payload.to,
-        subject: payload.subject,
-        body: payload.body,
-        status: "sent",
-        sentAt: new Date(),
+        status: "failed",
+        error: error instanceof Error ? error.message.slice(0, 500) : "unknown",
       },
-    }),
-    ...(payload.notificationId
-      ? [
-          prisma.notification.update({
-            where: { id: payload.notificationId },
-            data: { status: "sent", sentAt: new Date() },
-          }),
-        ]
-      : []),
-  ]);
+    });
+  });
 }
 
-export async function sendPendingNotifications(limit = 20): Promise<void> {
-  const pending = await prisma.notification.findMany({
-    where: { status: "pending" },
-    orderBy: { createdAt: "asc" },
-    take: limit,
-  });
-  if (pending.length === 0) return;
-
-  for (const notification of pending) {
-    try {
-      await sendQueuedEmail({
-        notificationId: notification.id,
-        userId: notification.userId,
-        instanceId: notification.instanceId,
-        to: notification.recipientEmail,
-        subject: notification.subject,
-        body: notification.body,
-      });
-    } catch (error) {
-      await prisma.notification.update({
-        where: { id: notification.id },
-        data: {
-          status: "failed",
-          error: error instanceof Error ? error.message.slice(0, 500) : "unknown",
-        },
-      });
-    }
+async function deliverNotification(
+  notification: Notification,
+  instance: Instance,
+): Promise<void> {
+  const botToken = decryptSecret(instance.wechatBotTokenEncrypted);
+  if (!botToken || !instance.wechatBaseUrl || !instance.wechatUserId) {
+    throw new Error("微信通知未绑定完整");
   }
+  await sendWechatMessage({
+    baseUrl: instance.wechatBaseUrl,
+    botToken,
+    userId: instance.wechatUserId,
+    text: `${notification.subject}\n\n${notification.body}`,
+  });
+  await prisma.notification.update({
+    where: { id: notification.id },
+    data: { status: "sent", sentAt: new Date() },
+  });
 }

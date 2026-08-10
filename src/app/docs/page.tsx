@@ -57,7 +57,7 @@ export default function DocsPage() {
             </p>
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
               {[
-                { title: "1. 注册账号", text: "使用 GitHub 或 Google 完成 OAuth 登录，注册即自动创建账号。" },
+                { title: "1. 注册账号", text: "使用 GitHub 完成 OAuth 登录，注册即自动创建账号。" },
                 { title: "2. 创建实例", text: "在控制台创建实例，得到 instance.waline.infvar.com/{标识} 地址。" },
                 { title: "3. 配置接入网站", text: "在实例编辑页填写自己的博客域名，开启 CORS 防盗链。" },
                 { title: "4. 替换 serverURL", text: "在 Waline 客户端中把 serverURL 指向实例地址，客户端会自行请求 /api 接口。" },
@@ -85,7 +85,7 @@ export default function DocsPage() {
                 。Waline 客户端会自动在实例地址后请求 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/api</code> 评论接口。
               </p>
               <p>
-                你可以在实例列表中复制 API 地址、启停实例、修改名称，或进入审核与通知页面配置策略。
+                你可以在实例列表中复制 API 地址、启停实例，或进入实例编辑页配置审核、敏感词和微信通知。
               </p>
               <p>
                 在「编辑实例」中填写允许接入的网站地址（每行一个）后，其他网站将无法跨域调用该实例的评论 API。
@@ -172,12 +172,12 @@ export default function DocsPage() {
             </h2>
             <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
               <p>
-                每个实例都可以独立配置基础审核开关、敏感词模式、Akismet 密钥、AI 审核接口、
-                IP/用户黑名单以及匿名评论与 PoW 验证策略。
+                每个实例都可以独立配置基础审核开关、敏感词模式、IP/用户黑名单以及匿名评论与
+                PoW 验证策略。付费套餐的 AI 垃圾审核由平台统一配置，实例只需打开开关。
               </p>
               <p>
                 敏感词支持「拦截」「替换」「转入待审核」三种动作；黑名单规则支持 IP、用户、
-                邮箱、链接与昵称五种维度。AI 审核使用 OpenAI 兼容接口，可替换为任意兼容提供商。
+                邮箱、链接与昵称五种维度。AI 审核使用 OpenAI 兼容接口，密钥支持多个并以英文逗号分隔轮询。
               </p>
             </div>
           </section>

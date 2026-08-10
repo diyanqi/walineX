@@ -74,7 +74,7 @@ export default async function TenantLoginPage({
           </Link>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight">登录 {instance.name}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            使用 GitHub 或 Google 账号登录后即可在评论中使用你的身份。
+            使用 GitHub 账号登录后即可在评论中使用你的身份。
           </p>
         </div>
         <div className="rounded-lg border bg-card p-6 shadow-sm">

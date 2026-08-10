@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Check,
   Copy,
@@ -70,7 +71,6 @@ export function InstancesManager({
 }: InstancesManagerProps) {
   const [instances, setInstances] = React.useState(initial);
   const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<DashboardInstance | null>(null);
   const [deleting, setDeleting] = React.useState<DashboardInstance | null>(null);
   const [form, setForm] = React.useState<InstanceFormState>(emptyForm());
   const [busy, setBusy] = React.useState(false);
@@ -80,21 +80,7 @@ export function InstancesManager({
   const canCreate = instances.length < planInstances;
 
   function openCreate() {
-    setEditing(null);
     setForm(emptyForm());
-    setMessage("");
-    setDialogOpen(true);
-  }
-
-  function openEdit(instance: DashboardInstance) {
-    setEditing(instance);
-    setForm({
-      name: instance.name,
-      slug: instance.slug,
-      description: instance.description || "",
-      targetOrigins: (instance.targetOrigins || []).join("\n"),
-      capToken: null,
-    });
     setMessage("");
     setDialogOpen(true);
   }
@@ -108,7 +94,7 @@ export function InstancesManager({
       setMessage("实例标识只能包含小写字母、数字和连字符");
       return;
     }
-    if (!editing && !form.capToken) {
+    if (!form.capToken) {
       setMessage("请先完成人机验证");
       return;
     }
@@ -116,12 +102,12 @@ export function InstancesManager({
     setMessage("");
     try {
       const response = await fetch(
-        editing ? `/api/dashboard/instances/${editing.id}` : "/api/dashboard/instances",
+        "/api/dashboard/instances",
         {
-          method: editing ? "PATCH" : "POST",
+          method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            ...(editing ? {} : { capToken: form.capToken }),
+            capToken: form.capToken,
             name: form.name.trim(),
             slug: form.slug,
             description: form.description.trim(),
@@ -142,9 +128,7 @@ export function InstancesManager({
         return;
       }
       setInstances((current) =>
-        editing
-          ? current.map((item) => (item.id === editing.id ? payload.data! : item))
-          : [payload.data!, ...current],
+        [payload.data!, ...current],
       );
       setDialogOpen(false);
     } catch {
@@ -319,14 +303,13 @@ export function InstancesManager({
                     onCheckedChange={() => void toggle(instance)}
                     aria-label="启用或停用实例"
                   />
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  <Link
+                    href={`/dashboard/instances/${instance.id}`}
                     aria-label="编辑实例"
-                    onClick={() => openEdit(instance)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     <Pencil />
-                  </Button>
+                  </Link>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -345,11 +328,9 @@ export function InstancesManager({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? "编辑实例" : "新建实例"}</DialogTitle>
+            <DialogTitle>新建实例</DialogTitle>
             <DialogDescription>
-              {editing
-                ? "修改实例名称、标识或描述。"
-                : "实例标识会用于生成你的专属 API 地址。"}
+              实例标识会用于生成你的专属 API 地址。
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
@@ -403,9 +384,7 @@ export function InstancesManager({
                 留空表示不限制来源；填写后会拦截未列入的网站请求。
               </p>
             </div>
-            {!editing ? (
-              <CapWidget scope="instance" onToken={(token) => setForm({ ...form, capToken: token })} />
-            ) : null}
+            <CapWidget scope="instance" onToken={(token) => setForm({ ...form, capToken: token })} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -413,7 +392,7 @@ export function InstancesManager({
             </Button>
             <Button onClick={() => void save()} disabled={busy}>
               {busy ? <Loader2 className="animate-spin" /> : null}
-              {editing ? "保存修改" : "创建实例"}
+              创建实例
             </Button>
           </DialogFooter>
         </DialogContent>

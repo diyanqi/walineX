@@ -46,34 +46,28 @@ SESSION_SECRET=<随机会话密钥>
 CAP_SECRET=<32字节随机密钥>
 GITHUB_CLIENT_ID=...
 GITHUB_CLIENT_SECRET=...
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
 NEXT_PUBLIC_APP_URL=https://waline.infvar.com
 NEXT_PUBLIC_ROOT_DOMAIN=waline.infvar.com
 NEXT_PUBLIC_INSTANCE_DOMAIN=instance.waline.infvar.com
-SMTP_HOST=...
-SMTP_PORT=587
-SMTP_USER=...
-SMTP_PASS=...
-SMTP_FROM=无尽书证 <noreply@waline.infvar.com>
+EPAY_PID=...
+EPAY_KEY=...
+EPAY_GATEWAY=...
 ```
 
 可选变量：
 
 - `ADMIN_EMAIL` / `ADMIN_NAME`：seed 时创建平台管理员账号。
-- `AKISMET_API_KEY`：Akismet 反垃圾默认密钥。
-- `AI_MODERATION_BASE_URL` / `AI_MODERATION_MODEL` / `AI_MODERATION_API_KEY`：AI 审核默认 OpenAI 兼容端点。
-- `EMAIL_WORKER_CONCURRENCY`：邮件 worker 并发数，默认 `4`。
+- `AI_MODERATION_BASE_URL` / `AI_MODERATION_MODEL` / `AI_MODERATION_API_KEY`：AI 审核默认 OpenAI 兼容端点，API Key 可用英文逗号分隔多个实现轮询。
 - `APP_PORT`：宿主机映射端口，默认 `3000`。
 
 ## 3. OAuth 回调地址
 
-GitHub OAuth App 和 Google OAuth Client 都要配置：
+GitHub OAuth App 需要配置：
 
 - GitHub：`https://waline.infvar.com/api/auth/github/callback`
-- Google：`https://waline.infvar.com/api/auth/google/callback`
 
 本服务通过 Cookie 建立登录态，实例登录弹窗会回到官网域完成 OAuth 后生成 Waline JWT。
+GitHub 账号注册时间不足一个月的用户会被拒绝登录。
 
 如果 GitHub 登录完成后仍跳转到 `http://localhost:3000/dashboard`，通常是容器里的
 `NEXT_PUBLIC_APP_URL` 还是旧值，或旧镜像没有重建。确认 `.env` 中为
@@ -92,7 +86,7 @@ docker compose up -d --build
 
 ```bash
 docker compose ps
-docker compose logs -f app worker
+docker compose logs -f app
 ```
 
 重新构建并滚动更新：
@@ -167,15 +161,10 @@ https://blog.example.org
 
 配置了接入白名单后，没有 `Origin` 或 `Referer` 的直接请求也会被拒绝，避免绕过浏览器 CORS 直接抓取或灌评论。
 
-## 7. 邮件 Worker
+## 7. 微信通知
 
-邮件通过 BullMQ 队列异步发送，应用本身不会阻塞评论请求。`docker compose up` 会同时启动 `worker` 服务；独立部署时运行：
-
-```bash
-pnpm worker:emails
-```
-
-如果 `REDIS_ENABLED=false`，系统会自动退回数据库 pending 队列，并在评论请求后尽力同步发送。
+微信通知通过 OpenClaw Clawbot 协议发送，用户只需在实例编辑页扫码绑定，无需配置任何邮件或微信环境变量。
+新评论、回复和待审核事件会直接推送到已绑定的微信。
 
 ## 8. 备份
 
@@ -191,7 +180,7 @@ docker compose exec db pg_dump -U waline walinex | gzip > walinex-$(date +%F).sq
 
 1. 访问 `/api/health` 确认服务健康。
 2. 访问 `https://waline.infvar.com/login`，确认返回登录页而不是 404。
-3. 使用 GitHub / Google 登录并创建实例。
+3. 使用 GitHub 登录并创建实例。
 4. 用任意 Waline 客户端指向 `https://instance.waline.infvar.com/{实例标识}` 发评论。
 5. 在控制台审核评论、配置敏感词和通知。
-6. 确认邮件 worker 日志中没有发送失败。
+6. 在实例编辑页绑定微信并发送一条评论，确认通知到达。

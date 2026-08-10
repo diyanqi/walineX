@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
 }
 
 export async function POST() {
-  return errorResponse(400, "本服务使用 GitHub / Google 登录，请访问 /ui/login", new NextRequest("http://localhost"));
+  return errorResponse(400, "本服务使用 GitHub 登录，请访问 /ui/login", new NextRequest("http://localhost"));
 }
 
 export async function OPTIONS(

@@ -9,7 +9,7 @@ import { rootUrl } from "@/lib/env";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ provider: string }> }) {
   const { provider } = await context.params;
-  if (provider !== "github" && provider !== "google") {
+  if (provider !== "github") {
     return NextResponse.redirect(new URL("/login?error=provider", rootUrl("/")));
   }
   const search = request.nextUrl.searchParams;
@@ -28,71 +28,77 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
 
   let userId = "";
   let oauthError = false;
+  let accountTooNew = false;
   try {
     const profile = await exchangeOAuthCode(provider, code);
-    const current = await getSessionUser();
-    const account = await prisma.account.findUnique({
-      where: { provider_providerAccountId: { provider, providerAccountId: profile.providerAccountId } },
-    });
-
-    userId = account?.userId ?? "";
-    if (!userId && current) {
-      userId = current.id;
-    }
-    if (!userId && profile.email) {
-      const existing = await prisma.user.findUnique({ where: { email: profile.email } });
-      if (existing?.id) userId = existing.id;
-    }
-    if (!userId) {
-      const user = await prisma.user.create({
-        data: {
-          name: profile.name,
-          email: profile.email,
-          avatar: profile.avatar,
-          url: profile.url,
-          githubId: provider === "github" ? profile.providerAccountId : null,
-          googleId: provider === "google" ? profile.providerAccountId : null,
+    const githubCreatedAt = new Date(profile.githubCreatedAt || "");
+    if (
+      !githubCreatedAt.getTime() ||
+      Date.now() - githubCreatedAt.getTime() < 30 * 24 * 60 * 60 * 1000
+    ) {
+      accountTooNew = true;
+    } else {
+      const current = await getSessionUser();
+      const account = await prisma.account.findUnique({
+        where: {
+          provider_providerAccountId: {
+            provider,
+            providerAccountId: profile.providerAccountId,
+          },
         },
       });
-      userId = user.id;
-    }
 
-    await prisma.account.upsert({
-      where: { provider_providerAccountId: { provider, providerAccountId: profile.providerAccountId } },
-      create: {
-        provider,
-        providerAccountId: profile.providerAccountId,
-        userId,
-        displayName: profile.name,
-        email: profile.email,
-        avatar: profile.avatar,
-      },
-      update: {
-        userId,
-        displayName: profile.name,
-        email: profile.email,
-        avatar: profile.avatar,
-      },
-    });
+      userId = account?.userId ?? "";
+      if (!userId && current) {
+        userId = current.id;
+      }
+      if (!userId && profile.email) {
+        const existing = await prisma.user.findUnique({ where: { email: profile.email } });
+        if (existing?.id) userId = existing.id;
+      }
+      if (!userId) {
+        const user = await prisma.user.create({
+          data: {
+            name: profile.name,
+            email: profile.email,
+            avatar: profile.avatar,
+            url: profile.url,
+            githubId: profile.providerAccountId,
+          },
+        });
+        userId = user.id;
+      }
 
-    if (provider === "github") {
+      await prisma.account.upsert({
+        where: {
+          provider_providerAccountId: {
+            provider,
+            providerAccountId: profile.providerAccountId,
+          },
+        },
+        create: {
+          provider,
+          providerAccountId: profile.providerAccountId,
+          userId,
+          displayName: profile.name,
+          email: profile.email,
+          avatar: profile.avatar,
+        },
+        update: {
+          userId,
+          displayName: profile.name,
+          email: profile.email,
+          avatar: profile.avatar,
+        },
+      });
+
       await prisma.user.update({
         where: { id: userId },
         data: {
           githubId: profile.providerAccountId,
           name: profile.name || undefined,
-          avatar: profile.avatar || undefined,
-          url: profile.url || undefined,
-        },
-      });
-    } else {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          googleId: profile.providerAccountId,
-          name: profile.name || undefined,
-          avatar: profile.avatar || undefined,
-          url: profile.url || undefined,
+          avatar: profile.avatar,
+          url: profile.url,
         },
       });
     }
@@ -101,6 +107,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
     oauthError = true;
   }
 
+  if (accountTooNew) {
+    return NextResponse.redirect(new URL("/login?error=age", rootUrl("/")));
+  }
   if (oauthError) {
     return NextResponse.redirect(new URL("/login?error=oauth", rootUrl("/")));
   }

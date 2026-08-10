@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { GitBranch, Globe } from "lucide-react";
+import { GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CapWidget } from "@/components/cap-widget";
 import type { CapScope } from "@/lib/cap-shared";
 
-type Provider = "github" | "google";
+type Provider = "github";
 
 interface AuthOAuthPanelProps {
   mode: "login" | "register";
@@ -58,30 +58,20 @@ export function AuthOAuthPanel({ mode, redirect = "/dashboard" }: AuthOAuthPanel
           {error}
         </p>
       ) : null}
-      <div className="grid gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="w-full"
-          disabled={loading !== null}
-          onClick={() => void start("github")}
-        >
-          <GitBranch />
-          {loading === "github" ? "正在跳转 GitHub..." : "使用 GitHub 登录"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="w-full"
-          disabled={loading !== null}
-          onClick={() => void start("google")}
-        >
-          <Globe />
-          {loading === "google" ? "正在跳转 Google..." : "使用 Google 登录"}
-        </Button>
-      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="lg"
+        className="w-full"
+        disabled={loading !== null}
+        onClick={() => void start("github")}
+      >
+        <GitBranch />
+        {loading === "github" ? "正在跳转 GitHub..." : "使用 GitHub 登录"}
+      </Button>
+      <p className="text-center text-xs text-muted-foreground">
+        仅支持 GitHub 登录，GitHub 账号需注册满一个月。
+      </p>
     </div>
   );
 }

@@ -20,7 +20,10 @@ function publicInstance(instance: {
   notifyNewComment: boolean;
   notifyReply: boolean;
   notifyModeration: boolean;
-  notificationEmail: string | null;
+  wechatNotificationEnabled: boolean;
+  wechatBotTokenEncrypted: string | null;
+  wechatBaseUrl: string | null;
+  wechatUserId: string | null;
 }) {
   return {
     id: instance.id,
@@ -35,7 +38,12 @@ function publicInstance(instance: {
     notifyNewComment: instance.notifyNewComment,
     notifyReply: instance.notifyReply,
     notifyModeration: instance.notifyModeration,
-    notificationEmail: instance.notificationEmail,
+    wechatNotificationEnabled: instance.wechatNotificationEnabled,
+    wechatBound: Boolean(
+      instance.wechatBotTokenEncrypted &&
+        instance.wechatBaseUrl &&
+        instance.wechatUserId,
+    ),
   };
 }
 
@@ -69,15 +77,15 @@ export async function PATCH(
       "notifyNewComment",
       "notifyReply",
       "notifyModeration",
-      "notificationEmail",
+      "wechatNotificationEnabled",
     ] as const;
     if (notificationKeys.some((key) => key in body)) {
       const owner = await prisma.user.findUnique({
         where: { id: instance.userId },
         select: { plan: true },
       });
-      if (!owner || !planLimits(owner.plan).emailNotifications) {
-        throw new ApiError("当前套餐不包含邮件通知，请升级后重试", 403);
+      if (!owner || !planLimits(owner.plan).wechatNotifications) {
+        throw new ApiError("当前套餐不包含微信通知，请升级后重试", 403);
       }
     }
     if (typeof body.slug === "string" && body.slug.trim()) {
@@ -97,8 +105,8 @@ export async function PATCH(
     for (const key of ["notifyNewComment", "notifyReply", "notifyModeration"] as const) {
       if (typeof body[key] === "boolean") data[key] = body[key];
     }
-    if (typeof body.notificationEmail === "string") {
-      data.notificationEmail = body.notificationEmail.trim() || null;
+    if (typeof body.wechatNotificationEnabled === "boolean") {
+      data.wechatNotificationEnabled = body.wechatNotificationEnabled;
     }
     if (Object.keys(data).length === 0) throw new ApiError("没有可更新的字段");
 

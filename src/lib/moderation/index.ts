@@ -1,9 +1,10 @@
 import type { Instance } from "@prisma/client";
-import { akismetConfigFromInstance, akismetResult } from "@/lib/moderation/akismet";
 import { classifierFromInstance } from "@/lib/moderation/ai";
 import { checkBlacklistRules } from "@/lib/moderation/rules";
 import { checkSensitiveWords } from "@/lib/moderation/sensitive";
 import type { ModerationInput, ModerationResult } from "@/lib/moderation/types";
+import { prisma } from "@/lib/prisma";
+import { planLimits } from "@/lib/plans";
 
 export async function moderateComment(
   instance: Instance,
@@ -27,10 +28,15 @@ export async function moderateComment(
     rendered: sensitive.rendered,
   };
 
-  const akismet = akismetConfigFromInstance(instance);
-  const ai = classifierFromInstance(instance);
+  const owner = await prisma.user.findUnique({
+    where: { id: instance.userId },
+    select: { plan: true },
+  });
+  const ai =
+    owner && planLimits(owner.plan).aiModeration
+      ? classifierFromInstance(instance)
+      : null;
   const results = await Promise.all([
-    akismet ? akismetResult(akismet, input) : Promise.resolve(null),
     ai ? ai.classify(input) : Promise.resolve(null),
   ]);
 

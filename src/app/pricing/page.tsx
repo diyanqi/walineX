@@ -35,7 +35,7 @@ export default function PricingPage() {
               <div>
                 <h2 className="text-xl font-semibold tracking-tight">升级需要怎么做？</h2>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  登录控制台后联系平台开通新套餐。套餐生效后实例数量、评论额度和高级审核能力会立即解锁。
+                  登录控制台后在「计划」页选择套餐并支付即可。支付成功后实例数量、评论额度和微信通知会立即解锁。
                 </p>
               </div>
               <div>

@@ -4,15 +4,14 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bell,
   BookOpenCheck,
+  CreditCard,
   Gauge,
   LogOut,
   Menu,
   MessageSquare,
   MessageSquareText,
   Settings,
-  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -22,8 +21,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "概览", icon: Gauge, exact: true },
   { href: "/dashboard/instances", label: "实例", icon: BookOpenCheck },
   { href: "/dashboard/comments", label: "评论", icon: MessageSquareText },
-  { href: "/dashboard/moderation", label: "审核", icon: ShieldCheck },
-  { href: "/dashboard/notifications", label: "通知", icon: Bell },
+  { href: "/dashboard/plans", label: "计划", icon: CreditCard },
   { href: "/dashboard/settings", label: "设置", icon: Settings },
 ];
 

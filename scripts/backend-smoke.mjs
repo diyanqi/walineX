@@ -1,6 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
 import pg from "pg";
-import { Redis } from "ioredis";
 
 if (process.loadEnvFile) {
   process.loadEnvFile(".env");
@@ -118,10 +117,6 @@ async function request(path, { method = "GET", body, cookie, bearer } = {}) {
 
 const db = new Client({ connectionString: process.env.DATABASE_URL });
 await db.connect();
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
-  maxRetriesPerRequest: 1,
-  enableOfflineQueue: false,
-});
 
 let userId;
 try {
@@ -173,10 +168,12 @@ try {
 
   await db.query(
     `UPDATE "Instance"
-     SET "notificationEmail" = $1, "notifyModeration" = true,
+     SET "notifyModeration" = true, "wechatNotificationEnabled" = true,
+         "wechatBotTokenEncrypted" = 'smoke-token', "wechatBaseUrl" = 'https://example.com',
+         "wechatUserId" = 'smoke@im.wechat',
          "requireCap" = true, "moderationEnabled" = false
      WHERE id = $2`,
-    [`smoke-owner@example.com`, instance.id],
+    [instance.id],
   );
 
   const missingCapResponse = await fetch(`${base}/tenant/${slug}/api/comment`, {
@@ -331,16 +328,9 @@ try {
     `SELECT type, status, error FROM "Notification" WHERE "instanceId" = $1 ORDER BY "createdAt" DESC`,
     [instance.id],
   );
-  const queued = await redis.llen("bull:walinex-emails:wait");
-  console.log(`notifications: ${JSON.stringify(notifications.rows)} queued=${queued}`);
+  console.log(`notifications: ${JSON.stringify(notifications.rows)}`);
   if (!notifications.rows.some((row) => row.type === "moderation")) {
     throw new Error("expected a moderation notification row");
-  }
-  if (!notifications.rows.some((row) => row.status === "pending")) {
-    throw new Error("expected moderation notification to remain queued as pending");
-  }
-  if (queued < 1) {
-    throw new Error("expected BullMQ email queue to contain the notification job");
   }
 
   const listed = await request(`/tenant/${slug}/api/comment?path=/smoke&pageSize=50`);

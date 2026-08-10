@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 export const metadata: Metadata = {
   title: "Waline 兼容托管评论服务",
   description:
-    "为博客和独立站点提供 Waline 兼容的托管评论服务。多实例、PoW 人机验证、智能审核、邮件通知，即刻接入。",
+    "为博客和独立站点提供 Waline 兼容的托管评论服务。多实例、PoW 人机验证、智能审核、微信通知，即刻接入。",
 };
 
 const FEATURES = [
@@ -43,12 +43,12 @@ const FEATURES = [
   {
     icon: Bot,
     title: "智能审核",
-    description: "敏感词、IP 与用户黑名单、Akismet 垃圾过滤，以及可替换的 AI 审核接口。",
+    description: "敏感词、IP 与用户黑名单，以及平台统一配置的 AI 垃圾审核。",
   },
   {
     icon: BellRing,
-    title: "邮件通知",
-    description: "新评论、回复和待审核事件通过异步队列发送邮件，不阻塞评论提交。",
+    title: "微信通知",
+    description: "新评论、回复和待审核事件直接推送到微信，扫码即可完成绑定。",
   },
   {
     icon: Zap,
@@ -71,12 +71,12 @@ const FAQS = [
   {
     question: "评论会经过哪些审核？",
     answer:
-      "评论会按顺序经过黑名单规则、敏感词、Akismet 与 AI 审核，命中规则后可拦截、替换或转入待审核。",
+      "评论会按顺序经过黑名单规则、敏感词与 AI 审核，命中规则后可拦截、替换或转入待审核。",
   },
   {
     question: "免费套餐可以长期使用吗？",
     answer:
-      "可以。免费套餐提供 1 个实例和每月 5,000 条评论，适合个人博客和小流量站点长期使用。",
+      "可以。免费套餐提供 1 个实例、每月 1,000 条评论和累计 5,000 条评论，适合个人博客和小流量站点长期使用。",
   },
 ];
 
@@ -107,7 +107,7 @@ export default function Home() {
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
                 无尽书证是 Waline 兼容的托管评论服务。创建实例、替换服务端地址，即可获得多租户管理、
-                PoW 人机验证、智能审核与邮件通知。
+                PoW 人机验证、智能审核与微信通知。
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
@@ -228,7 +228,7 @@ export default function Home() {
                   {[
                     {
                       title: "创建账号与实例",
-                      description: "使用 GitHub 或 Google 登录，免费套餐即可创建第一个实例。",
+                      description: "使用 GitHub 登录，免费套餐即可创建第一个实例。",
                     },
                     {
                       title: "复制实例地址",

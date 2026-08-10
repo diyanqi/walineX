@@ -5,7 +5,7 @@ import { verifyCapToken } from "@/lib/cap";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { errorResponse, jsonResponse } from "@/lib/http";
 
-const PROVIDERS = new Set(["github", "google"]);
+const PROVIDERS = new Set(["github"]);
 
 export async function GET(request: NextRequest, context: { params: Promise<{ provider: string }> }) {
   const { provider } = await context.params;
@@ -45,7 +45,7 @@ async function startAuth(request: NextRequest, provider: string, redirect: strin
     nonce: randomToken(8),
   });
   return jsonResponse(
-    { errno: 0, data: { redirectUrl: authorizeUrl(provider as "github" | "google", state) } },
+    { errno: 0, data: { redirectUrl: authorizeUrl(provider, state) } },
     200,
     request,
   );

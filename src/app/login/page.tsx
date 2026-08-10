@@ -29,7 +29,7 @@ export default async function LoginPage({
           </Link>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight">登录你的控制台</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            使用 GitHub 或 Google 账号继续，新账号会自动创建。
+            使用 GitHub 账号继续，新账号会自动创建。
           </p>
         </div>
         <Card>
@@ -43,7 +43,11 @@ export default async function LoginPage({
             <AuthOAuthPanel mode="login" redirect={redirectTo} />
           </CardContent>
         </Card>
-        {params.error ? (
+        {params.error === "age" ? (
+          <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-sm text-destructive">
+            GitHub 账号注册未满一个月，暂无法登录。
+          </p>
+        ) : params.error ? (
           <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-sm text-destructive">
             登录失败，请重新尝试。
           </p>
