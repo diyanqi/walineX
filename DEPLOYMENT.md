@@ -114,6 +114,45 @@ docker compose up -d
 如果 `migrate` 容器报 `The datasource.url property is required`，确认 `.env` 中
 `DATABASE_URL` 已正确设置，且外部数据库允许当前服务器 IP 访问。
 
+### 连不上 1Panel 的 PostgreSQL
+
+如果日志反复出现 `Database not ready ... getaddrinfo EAI_AGAIN 1Panel-postgresql-xxx`，
+说明 `DATABASE_URL` 里写的是 1Panel PostgreSQL 容器的名字，但 walinex 容器和它不在同一个
+Docker 网络，容器内无法解析这个名字。
+
+推荐把 walinex 的 Compose 挂到 PostgreSQL 所在的网络。先在服务器上查出该网络：
+
+```bash
+docker inspect 1Panel-postgresql-8Rqm --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{println}}{{end}}'
+```
+
+假设输出是 `1panel-network`，在 `docker-compose.yml` 末尾追加：
+
+```yaml
+networks:
+  default:
+    external: true
+    name: 1panel-network
+```
+
+然后重新执行 `docker compose up -d`，`DATABASE_URL` 中继续使用 PostgreSQL 容器名
+（例如 `1Panel-postgresql-8Rqm`）即可。
+
+如果不想改网络，也可以在 1Panel 中给 PostgreSQL 映射一个宿主端口，例如 `5432`，然后：
+
+```yaml
+services:
+  migrate:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  app:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+```
+
+`DATABASE_URL` 改为 `postgresql://用户:密码@host.docker.internal:5432/数据库?schema=public`。
+用 `docker inspect` 查容器 IP 直接填入也可以，但容器重建后 IP 可能变化，不适合长期使用。
+
 ## 5. 反向代理与 HTTPS
 
 以 Caddy 为例：
